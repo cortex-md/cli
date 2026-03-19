@@ -1,0 +1,96 @@
+:root {
+	/* Background colors */
+	--bg-primary: #fafaf8;
+	--bg-secondary: #f5f4f0;
+	--bg-tertiary: #edecea;
+	--bg-elevated: #ffffff;
+	--bg-hover: #edecea;
+	--bg-active: #ddd9d1;
+	--bg-selected: #f9c46a;
+	--bg-code: #f5f4f0;
+	--bg-tag: #edecea;
+
+	/* Text colors */
+	--text-primary: #201d18;
+	--text-secondary: #332f28;
+	--text-muted: #6b6a62;
+	--text-disabled: #8a8980;
+	--text-placeholder: #8a8980;
+	--text-on-accent: #ffffff;
+
+	/* Accent colors */
+	--accent-default: #e8a83c;
+	--accent-hover: #f9c46a;
+	--accent-active: #fde3b8;
+	--accent-subtle: #fef3e2;
+	--accent-border: #e8a83c;
+	--accent-text: #a06a10;
+
+	/* Link colors */
+	--link-default: #a06a10;
+	--link-hover: #c98a20;
+	--link-broken: #b83535;
+
+	/* Border colors */
+	--border-default: #d0cfc8;
+	--border-subtle: #e4e3df;
+	--border-strong: #8a8980;
+	--border-focus: #e8a83c;
+
+	/* Syntax highlighting */
+	--syntax-keyword: #a06a10;
+	--syntax-string: #4a9b6f;
+	--syntax-comment: #b3b2a8;
+	--syntax-number: #b83535;
+	--syntax-function: #6b4e8a;
+	--syntax-type: #8b6914;
+	--syntax-operator: #6b6a62;
+	--syntax-property: #6b3a8a;
+	--syntax-heading: #a06a10;
+	--syntax-meta: #b3b2a8;
+
+	/* Status colors */
+	--status-error: #b83535;
+	--status-error-bg: #fdeaea;
+	--status-success: #4a9b6f;
+	--status-success-bg: #e8f5ee;
+	--status-warning: #d4a017;
+	--status-warning-bg: #fdf6e3;
+
+	/* Component-specific */
+	--btn-primary-bg: #201d18;
+	--btn-primary-text: #fafaf8;
+	--btn-primary-hover: #0a0a09;
+	--input-bg: #ffffff;
+	--input-border: #d0cfc8;
+	--input-focus-ring: rgba(232, 168, 60, 0.15);
+	--menu-bg: #ffffff;
+	--menu-border: #e4e3df;
+	--menu-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+	--menu-hover: #f5f4f0;
+	--modal-bg: #ffffff;
+	--modal-border: #e4e3df;
+	--modal-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
+	--tooltip-bg: #201d18;
+	--tooltip-text: #f5f4f0;
+	--sidebar-bg: #f5f4f0;
+	--sidebar-border: #e4e3df;
+	--tab-bg: #f5f4f0;
+	--tab-active-bg: #fafaf8;
+	--tab-accent: #e8a83c;
+	--statusbar-bg: #f5f4f0;
+	--statusbar-border: #e4e3df;
+	--scrollbar-thumb: #d0cfc8;
+	--scrollbar-hover: #b3b2a8;
+	--shadow-raised: 0 1px 3px rgba(0, 0, 0, 0.1);
+	--shadow-floating: 0 10px 15px rgba(0, 0, 0, 0.1);
+	--shadow-overlay: 0 20px 25px rgba(0, 0, 0, 0.15);
+
+	/* Fonts */
+	--font-ui: "DM Sans", system-ui, -apple-system, sans-serif;
+	--font-editor: "Lora", Georgia, "Times New Roman", serif;
+	--font-mono: "DM Mono", "JetBrains Mono", "Fira Code", Menlo, monospace;
+
+	/* Color scheme */
+	color-scheme: light;
+}

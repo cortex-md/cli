@@ -1,0 +1,171 @@
+name: Release CLI
+
+on:
+  push:
+    tags:
+      - 'cli-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.1.0)'
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: Build CLI for ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            output: cortex
+
+          - os: macos-arm64
+            runner: macos-latest
+            target: aarch64-apple-darwin
+            output: cortex
+
+          - os: macos-x64
+            runner: macos-13
+            target: x86_64-apple-darwin
+            output: cortex
+
+          - os: windows
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            output: cortex.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache-dependency-path: apps/cli/go.sum
+
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event.inputs.version }}" != "" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            VERSION="${GITHUB_REF_NAME#cli-v}"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build CLI
+        env:
+          GITHUB_CLIENT_ID: ${{ secrets.CLI_GITHUB_CLIENT_ID }}
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          if [ -z "$GITHUB_CLIENT_ID" ]; then
+            echo "Error: CLI_GITHUB_CLIENT_ID secret not set"
+            exit 1
+          fi
+
+          LDFLAGS="-s -w"
+          LDFLAGS="$LDFLAGS -X 'github.com/cortex/cli/internal/buildinfo.Version=$VERSION'"
+          LDFLAGS="$LDFLAGS -X 'github.com/cortex/cli/internal/buildinfo.GitHubClientID=$GITHUB_CLIENT_ID'"
+
+          go build -ldflags "$LDFLAGS" -o bin/${{ matrix.output }} cmd/cortex/main.go
+
+      - name: Create tarball (Unix)
+        if: matrix.os != 'windows'
+        run: |
+          tar -czf cortex-${{ steps.version.outputs.version }}-${{ matrix.os }}.tar.gz -C bin ${{ matrix.output }}
+
+      - name: Create zip (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path bin/${{ matrix.output }} -DestinationPath cortex-${{ steps.version.outputs.version }}-${{ matrix.os }}.zip
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cortex-${{ matrix.os }}
+          path: |
+            apps/cli/*.tar.gz
+            apps/cli/*.zip
+          retention-days: 1
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event.inputs.version }}" != "" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            VERSION="${GITHUB_REF_NAME#cli-v}"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Cortex CLI v${{ steps.version.outputs.version }}
+          body: |
+            ## Cortex CLI v${{ steps.version.outputs.version }}
+
+            Official CLI tool for creating, developing, validating, and publishing Cortex plugins and themes.
+
+            ### Installation
+
+            #### macOS / Linux
+
+            ```bash
+            # Download and extract
+            curl -fsSL https://github.com/cortex-md/cortex/releases/download/${{ github.ref_name }}/cortex-${{ steps.version.outputs.version }}-macos-arm64.tar.gz | tar xz
+
+            # Move to PATH
+            sudo mv cortex /usr/local/bin/
+
+            # Verify installation
+            cortex -v
+            ```
+
+            #### Windows
+
+            Download `cortex-${{ steps.version.outputs.version }}-windows.zip`, extract, and add to PATH.
+
+            ### Commands
+
+            - `cortex plugin create` - Scaffold new plugin
+            - `cortex plugin dev` - Development mode with hot reload
+            - `cortex plugin validate` - Validate plugin structure and security
+            - `cortex plugin publish` - Publish to GitHub releases
+            - `cortex theme create` - Scaffold new theme
+            - `cortex theme validate` - Validate theme CSS
+            - `cortex theme publish` - Publish theme to GitHub
+            - `cortex login` - Authenticate with GitHub
+
+            ### Documentation
+
+            See the [CLI documentation](https://github.com/cortex-md/cortex/tree/main/apps/cli) for detailed usage.
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/**/*.tar.gz
+            artifacts/**/*.zip

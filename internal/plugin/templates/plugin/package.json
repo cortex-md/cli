@@ -1,0 +1,20 @@
+{
+	"name": "@cortex/plugin-{{ID}}",
+	"private": true,
+	"version": "{{VERSION}}",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"build": "bun build src/index.ts --outdir dist --target node --format esm",
+		"dev": "cortex plugin dev",
+		"validate": "cortex plugin validate"
+	},
+	"dependencies": {
+		"@cortex/plugin-api": "^0.1.0"
+	},
+	"devDependencies": {
+		"typescript": "~5.8.3"
+	}
+}

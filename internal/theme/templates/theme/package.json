@@ -1,0 +1,6 @@
+{
+	"name": "@cortex/theme-{{ID}}",
+	"version": "{{VERSION}}",
+	"private": true,
+	"description": "{{DESCRIPTION}}"
+}

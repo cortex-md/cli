@@ -1,0 +1,11 @@
+{
+	"id": "{{ID}}",
+	"name": "{{NAME}}",
+	"displayName": "{{DISPLAY_NAME}}",
+	"author": "{{AUTHOR}}",
+	"version": "{{VERSION}}",
+	"colorschemes": {
+		"dark": "./theme-dark.css",
+		"light": "./theme-light.css"
+	}
+}
