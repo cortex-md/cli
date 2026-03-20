@@ -17,8 +17,8 @@ func NewLoginCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientID := buildinfo.GitHubClientID
 			if clientID == "" {
-				ux.Error("GitHub client ID not configured in this build")
-				ux.Info("This is a development build. Use a release build or set GITHUB_CLIENT_ID at build time.")
+				ux.Error("GitHub login is unavailable in this installation")
+				ux.Info("Please reinstall Cortex CLI from an official release")
 				return fmt.Errorf("missing client ID")
 			}
 

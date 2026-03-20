@@ -1,171 +1,291 @@
-name: Release CLI
+name: Release
 
 on:
   push:
     tags:
-      - 'cli-v*'
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to release (e.g., 0.1.0)'
-        required: true
-        type: string
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
 
 jobs:
-  build:
-    name: Build CLI for ${{ matrix.os }}
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      matrix:
-        include:
-          - os: linux
-            runner: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            output: cortex
-
-          - os: macos-arm64
-            runner: macos-latest
-            target: aarch64-apple-darwin
-            output: cortex
-
-          - os: macos-x64
-            runner: macos-13
-            target: x86_64-apple-darwin
-            output: cortex
-
-          - os: windows
-            runner: windows-latest
-            target: x86_64-pc-windows-msvc
-            output: cortex.exe
-
+  release:
+    name: Build and Release CLI
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
-          cache-dependency-path: apps/cli/go.sum
+          go-version: "1.23"
+          cache-dependency-path: go.sum
 
-      - name: Extract version
-        id: version
-        shell: bash
-        run: |
-          if [ "${{ github.event.inputs.version }}" != "" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
-          else
-            VERSION="${GITHUB_REF_NAME#cli-v}"
-            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          registry-url: "https://registry.npmjs.org"
 
-      - name: Build CLI
+      - name: Validate required secrets
         env:
-          GITHUB_CLIENT_ID: ${{ secrets.CLI_GITHUB_CLIENT_ID }}
-        shell: bash
+          CLI_GITHUB_CLIENT_ID: ${{ secrets.CLI_GITHUB_CLIENT_ID }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-
-          if [ -z "$GITHUB_CLIENT_ID" ]; then
-            echo "Error: CLI_GITHUB_CLIENT_ID secret not set"
+          if [ -z "$CLI_GITHUB_CLIENT_ID" ]; then
+            echo "Missing required secret: CLI_GITHUB_CLIENT_ID"
+            echo "Create an OAuth App and set this secret to the app Client ID"
+            exit 1
+          fi
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "Missing required secret: NPM_TOKEN"
             exit 1
           fi
 
-          LDFLAGS="-s -w"
-          LDFLAGS="$LDFLAGS -X 'github.com/cortex/cli/internal/buildinfo.Version=$VERSION'"
-          LDFLAGS="$LDFLAGS -X 'github.com/cortex/cli/internal/buildinfo.GitHubClientID=$GITHUB_CLIENT_ID'"
-
-          go build -ldflags "$LDFLAGS" -o bin/${{ matrix.output }} cmd/cortex/main.go
-
-      - name: Create tarball (Unix)
-        if: matrix.os != 'windows'
+      - name: Build release binaries
+        env:
+          VERSION: ${{ github.ref_name }}
+          GITHUB_CLIENT_ID: ${{ secrets.CLI_GITHUB_CLIENT_ID }}
         run: |
-          tar -czf cortex-${{ steps.version.outputs.version }}-${{ matrix.os }}.tar.gz -C bin ${{ matrix.output }}
+          VERSION_VALUE="${VERSION#v}"
+          make release VERSION="$VERSION_VALUE" GITHUB_CLIENT_ID="$GITHUB_CLIENT_ID"
 
-      - name: Create zip (Windows)
-        if: matrix.os == 'windows'
-        shell: pwsh
+      - name: Create archives
         run: |
-          Compress-Archive -Path bin/${{ matrix.output }} -DestinationPath cortex-${{ steps.version.outputs.version }}-${{ matrix.os }}.zip
+          mkdir -p dist
+          tar -czf dist/cortex-${{ github.ref_name }}-darwin-arm64.tar.gz -C bin cortex-darwin-arm64
+          tar -czf dist/cortex-${{ github.ref_name }}-darwin-amd64.tar.gz -C bin cortex-darwin-amd64
+          tar -czf dist/cortex-${{ github.ref_name }}-linux-amd64.tar.gz -C bin cortex-linux-amd64
+          tar -czf dist/cortex-${{ github.ref_name }}-linux-arm64.tar.gz -C bin cortex-linux-arm64
+          cp bin/cortex-windows-amd64.exe dist/cortex-${{ github.ref_name }}-windows-amd64.exe
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: cortex-${{ matrix.os }}
-          path: |
-            apps/cli/*.tar.gz
-            apps/cli/*.zip
-          retention-days: 1
-
-  release:
-    name: Create GitHub Release
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Extract version
-        id: version
-        shell: bash
-        run: |
-          if [ "${{ github.event.inputs.version }}" != "" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
-          else
-            VERSION="${GITHUB_REF_NAME#cli-v}"
-            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: Cortex CLI v${{ steps.version.outputs.version }}
+          name: Cortex CLI ${{ github.ref_name }}
+          generate_release_notes: true
           body: |
-            ## Cortex CLI v${{ steps.version.outputs.version }}
+            Automatic CLI release for `${{ github.ref_name }}`.
 
-            Official CLI tool for creating, developing, validating, and publishing Cortex plugins and themes.
-
-            ### Installation
-
-            #### macOS / Linux
-
-            ```bash
-            # Download and extract
-            curl -fsSL https://github.com/cortex-md/cortex/releases/download/${{ github.ref_name }}/cortex-${{ steps.version.outputs.version }}-macos-arm64.tar.gz | tar xz
-
-            # Move to PATH
-            sudo mv cortex /usr/local/bin/
-
-            # Verify installation
-            cortex -v
-            ```
-
-            #### Windows
-
-            Download `cortex-${{ steps.version.outputs.version }}-windows.zip`, extract, and add to PATH.
-
-            ### Commands
-
-            - `cortex plugin create` - Scaffold new plugin
-            - `cortex plugin dev` - Development mode with hot reload
-            - `cortex plugin validate` - Validate plugin structure and security
-            - `cortex plugin publish` - Publish to GitHub releases
-            - `cortex theme create` - Scaffold new theme
-            - `cortex theme validate` - Validate theme CSS
-            - `cortex theme publish` - Publish theme to GitHub
-            - `cortex login` - Authenticate with GitHub
-
-            ### Documentation
-
-            See the [CLI documentation](https://github.com/cortex-md/cortex/tree/main/apps/cli) for detailed usage.
+            This release includes platform binaries and npm packages.
           draft: false
           prerelease: false
           files: |
-            artifacts/**/*.tar.gz
-            artifacts/**/*.zip
+            dist/cortex-${{ github.ref_name }}-darwin-arm64.tar.gz
+            dist/cortex-${{ github.ref_name }}-darwin-amd64.tar.gz
+            dist/cortex-${{ github.ref_name }}-linux-amd64.tar.gz
+            dist/cortex-${{ github.ref_name }}-linux-arm64.tar.gz
+            dist/cortex-${{ github.ref_name }}-windows-amd64.exe
+
+      - name: Prepare npm packages
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          rm -rf npm
+          mkdir -p npm
+
+          mkdir -p npm/cli-darwin-arm64/bin
+          cp bin/cortex-darwin-arm64 npm/cli-darwin-arm64/bin/cortex
+          chmod +x npm/cli-darwin-arm64/bin/cortex
+          cat > npm/cli-darwin-arm64/package.json <<EOF
+          {
+            "name": "@cortex.md/cli-darwin-arm64",
+            "version": "${VERSION}",
+            "description": "Cortex CLI binary for macOS arm64",
+            "license": "MIT",
+            "os": ["darwin"],
+            "cpu": ["arm64"],
+            "bin": {
+              "cortex": "bin/cortex"
+            },
+            "files": ["bin"]
+          }
+          EOF
+
+          mkdir -p npm/cli-darwin-x64/bin
+          cp bin/cortex-darwin-amd64 npm/cli-darwin-x64/bin/cortex
+          chmod +x npm/cli-darwin-x64/bin/cortex
+          cat > npm/cli-darwin-x64/package.json <<EOF
+          {
+            "name": "@cortex.md/cli-darwin-x64",
+            "version": "${VERSION}",
+            "description": "Cortex CLI binary for macOS x64",
+            "license": "MIT",
+            "os": ["darwin"],
+            "cpu": ["x64"],
+            "bin": {
+              "cortex": "bin/cortex"
+            },
+            "files": ["bin"]
+          }
+          EOF
+
+          mkdir -p npm/cli-linux-arm64/bin
+          cp bin/cortex-linux-arm64 npm/cli-linux-arm64/bin/cortex
+          chmod +x npm/cli-linux-arm64/bin/cortex
+          cat > npm/cli-linux-arm64/package.json <<EOF
+          {
+            "name": "@cortex.md/cli-linux-arm64",
+            "version": "${VERSION}",
+            "description": "Cortex CLI binary for Linux arm64",
+            "license": "MIT",
+            "os": ["linux"],
+            "cpu": ["arm64"],
+            "bin": {
+              "cortex": "bin/cortex"
+            },
+            "files": ["bin"]
+          }
+          EOF
+
+          mkdir -p npm/cli-linux-x64/bin
+          cp bin/cortex-linux-amd64 npm/cli-linux-x64/bin/cortex
+          chmod +x npm/cli-linux-x64/bin/cortex
+          cat > npm/cli-linux-x64/package.json <<EOF
+          {
+            "name": "@cortex.md/cli-linux-x64",
+            "version": "${VERSION}",
+            "description": "Cortex CLI binary for Linux x64",
+            "license": "MIT",
+            "os": ["linux"],
+            "cpu": ["x64"],
+            "bin": {
+              "cortex": "bin/cortex"
+            },
+            "files": ["bin"]
+          }
+          EOF
+
+          mkdir -p npm/cli-win32-x64/bin
+          cp bin/cortex-windows-amd64.exe npm/cli-win32-x64/bin/cortex.exe
+          cat > npm/cli-win32-x64/package.json <<EOF
+          {
+            "name": "@cortex.md/cli-win32-x64",
+            "version": "${VERSION}",
+            "description": "Cortex CLI binary for Windows x64",
+            "license": "MIT",
+            "os": ["win32"],
+            "cpu": ["x64"],
+            "bin": {
+              "cortex": "bin/cortex.exe"
+            },
+            "files": ["bin"]
+          }
+          EOF
+
+          mkdir -p npm/cli/bin
+          cat > npm/cli/package.json <<EOF
+          {
+            "name": "@cortex.md/cli",
+            "version": "${VERSION}",
+            "description": "Official Cortex CLI",
+            "license": "MIT",
+            "bin": {
+              "cortex": "bin/cortex.js"
+            },
+            "files": ["bin", "postinstall.js"],
+            "scripts": {
+              "postinstall": "node postinstall.js"
+            },
+            "optionalDependencies": {
+              "@cortex.md/cli-darwin-arm64": "${VERSION}",
+              "@cortex.md/cli-darwin-x64": "${VERSION}",
+              "@cortex.md/cli-linux-arm64": "${VERSION}",
+              "@cortex.md/cli-linux-x64": "${VERSION}",
+              "@cortex.md/cli-win32-x64": "${VERSION}"
+            }
+          }
+          EOF
+
+          cat > npm/cli/postinstall.js <<'EOF'
+          const fs = require("node:fs")
+          const path = require("node:path")
+
+          const mapping = {
+            "darwin-arm64": "@cortex.md/cli-darwin-arm64",
+            "darwin-x64": "@cortex.md/cli-darwin-x64",
+            "linux-arm64": "@cortex.md/cli-linux-arm64",
+            "linux-x64": "@cortex.md/cli-linux-x64",
+            "win32-x64": "@cortex.md/cli-win32-x64"
+          }
+
+          const key = `${process.platform}-${process.arch}`
+          const targetPackage = mapping[key]
+          if (!targetPackage) {
+            process.exit(0)
+          }
+
+          const packagePath = path.dirname(require.resolve(`${targetPackage}/package.json`))
+          const sourceBinary = process.platform === "win32"
+            ? path.join(packagePath, "bin", "cortex.exe")
+            : path.join(packagePath, "bin", "cortex")
+
+          const targetDir = path.join(__dirname, "bin")
+          fs.mkdirSync(targetDir, { recursive: true })
+
+          const targetBinary = process.platform === "win32"
+            ? path.join(targetDir, "cortex.exe")
+            : path.join(targetDir, "cortex")
+
+          fs.copyFileSync(sourceBinary, targetBinary)
+          if (process.platform !== "win32") {
+            fs.chmodSync(targetBinary, 0o755)
+          }
+          EOF
+
+          cat > npm/cli/bin/cortex.js <<'EOF'
+          #!/usr/bin/env node
+          const { spawnSync } = require("node:child_process")
+          const path = require("node:path")
+
+          const executable = process.platform === "win32"
+            ? path.join(__dirname, "cortex.exe")
+            : path.join(__dirname, "cortex")
+
+          const result = spawnSync(executable, process.argv.slice(2), { stdio: "inherit" })
+          if (result.error) {
+            console.error(result.error.message)
+            process.exit(1)
+          }
+          process.exit(result.status ?? 0)
+          EOF
+          chmod +x npm/cli/bin/cortex.js
+
+      - name: Publish @cortex.md/cli-darwin-arm64
+        working-directory: npm/cli-darwin-arm64
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @cortex.md/cli-darwin-x64
+        working-directory: npm/cli-darwin-x64
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @cortex.md/cli-linux-arm64
+        working-directory: npm/cli-linux-arm64
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @cortex.md/cli-linux-x64
+        working-directory: npm/cli-linux-x64
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @cortex.md/cli-win32-x64
+        working-directory: npm/cli-win32-x64
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @cortex.md/cli
+        working-directory: npm/cli
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
