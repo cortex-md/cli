@@ -40,6 +40,15 @@ Publish to the Cortex plugin registry:
 cortex plugin publish
 ```
 
+## GitHub Actions
+
+This template includes automated workflows in `.github/workflows/`:
+
+- `ci-plugin.yml` validates plugin build and strict checks on push/PR
+- `cd-plugin.yml` publishes on tag push or manual dispatch
+
+For automated publish, ensure `GITHUB_TOKEN` is available in workflow context.
+
 ## License
 
 MIT

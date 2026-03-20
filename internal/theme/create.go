@@ -19,6 +19,7 @@ var (
 )
 
 //go:embed templates/theme/*
+//go:embed templates/theme/github/workflows/*
 var templatesFS embed.FS
 
 type CreateOptions struct {
@@ -107,11 +108,13 @@ func writeTemplateFiles(dir string, opts CreateOptions) error {
 	}
 
 	templateFiles := map[string]string{
-		"templates/theme/manifest.json":   "manifest.json",
-		"templates/theme/package.json":    "package.json",
-		"templates/theme/theme-dark.css":  "theme-dark.css",
-		"templates/theme/theme-light.css": "theme-light.css",
-		"templates/theme/README.md":       "README.md",
+		"templates/theme/manifest.json":                 "manifest.json",
+		"templates/theme/package.json":                  "package.json",
+		"templates/theme/theme-dark.css":                "theme-dark.css",
+		"templates/theme/theme-light.css":               "theme-light.css",
+		"templates/theme/README.md":                     "README.md",
+		"templates/theme/github/workflows/ci-theme.yml": ".github/workflows/ci-theme.yml",
+		"templates/theme/github/workflows/cd-theme.yml": ".github/workflows/cd-theme.yml",
 	}
 
 	for templatePath, outputPath := range templateFiles {
@@ -122,6 +125,10 @@ func writeTemplateFiles(dir string, opts CreateOptions) error {
 
 		processedContent := applyReplacements(string(content), replacements)
 		fullPath := filepath.Join(dir, outputPath)
+
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+			return fmt.Errorf("failed to create directory for %s: %w", outputPath, err)
+		}
 
 		if err := os.WriteFile(fullPath, []byte(processedContent), 0o644); err != nil {
 			return fmt.Errorf("failed to write %s: %w", outputPath, err)

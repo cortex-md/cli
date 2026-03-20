@@ -78,7 +78,7 @@ func NewLogoutCommand() *cobra.Command {
 			}
 
 			if err := auth.DeleteToken(); err != nil {
-				ux.Error(fmt.Sprintf("Failed to remove credentials: %v", err))
+				ux.Error("Failed to remove credentials: %v", err)
 				return err
 			}
 

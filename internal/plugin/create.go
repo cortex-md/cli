@@ -22,6 +22,7 @@ var idPattern = regexp.MustCompile(`^[a-z0-9-]+$`)
 
 //go:embed templates/plugin/*
 //go:embed templates/plugin/src/*
+//go:embed templates/plugin/github/workflows/*
 var templatesFS embed.FS
 
 type CreateOptions struct {
@@ -130,12 +131,14 @@ func writeTemplateFiles(dir string, opts CreateOptions) error {
 	}
 
 	templateFiles := map[string]string{
-		"templates/plugin/manifest.json": "manifest.json",
-		"templates/plugin/package.json":  "package.json",
-		"templates/plugin/tsconfig.json": "tsconfig.json",
-		"templates/plugin/src/index.ts":  "src/index.ts",
-		"templates/plugin/gitignore":     ".gitignore",
-		"templates/plugin/README.md":     "README.md",
+		"templates/plugin/manifest.json":                  "manifest.json",
+		"templates/plugin/package.json":                   "package.json",
+		"templates/plugin/tsconfig.json":                  "tsconfig.json",
+		"templates/plugin/src/index.ts":                   "src/index.ts",
+		"templates/plugin/gitignore":                      ".gitignore",
+		"templates/plugin/README.md":                      "README.md",
+		"templates/plugin/github/workflows/ci-plugin.yml": ".github/workflows/ci-plugin.yml",
+		"templates/plugin/github/workflows/cd-plugin.yml": ".github/workflows/cd-plugin.yml",
 	}
 
 	for templatePath, outputPath := range templateFiles {
@@ -146,6 +149,10 @@ func writeTemplateFiles(dir string, opts CreateOptions) error {
 
 		processedContent := applyReplacements(string(content), replacements)
 		fullPath := filepath.Join(dir, outputPath)
+
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+			return fmt.Errorf("failed to create directory for %s: %w", outputPath, err)
+		}
 
 		if err := os.WriteFile(fullPath, []byte(processedContent), 0o644); err != nil {
 			return fmt.Errorf("failed to write %s: %w", outputPath, err)

@@ -93,15 +93,15 @@ func NewPluginCreateCommand() *cobra.Command {
 				opts.Author = author
 			}
 
-			ux.Step(fmt.Sprintf("Creating plugin '%s'...", opts.Name))
+			ux.Step("Creating plugin '%s'...", opts.Name)
 
 			if err := plugin.Create(opts); err != nil {
-				ux.Error(fmt.Sprintf("Failed to create plugin: %v", err))
+				ux.Error("Failed to create plugin: %v", err)
 				return err
 			}
 
-			ux.Success(fmt.Sprintf("Plugin '%s' created successfully!", opts.Name))
-			ux.Info(fmt.Sprintf("Directory: %s", opts.ID))
+			ux.Success("Plugin '%s' created successfully!", opts.Name)
+			ux.Info("Directory: %s", opts.ID)
 			fmt.Println()
 			ux.Info("Next steps:")
 			fmt.Println("  cd " + opts.ID)
@@ -225,11 +225,49 @@ func NewPluginValidateCommand() *cobra.Command {
 }
 
 func NewPluginDoctorCommand() *cobra.Command {
+	var dir string
+
 	return &cobra.Command{
-		Use:   "doctor",
+		Use:   "doctor [directory]",
 		Short: "Run diagnostics on the plugin",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ux.Warning("Plugin doctor coming soon!")
+			target := dir
+			if target == "" {
+				target = "."
+			}
+			if len(args) > 0 {
+				target = args[0]
+			}
+
+			result, err := plugin.Doctor(target)
+			if err != nil {
+				return err
+			}
+
+			if len(result.Issues) == 0 {
+				ux.Success("No issues found. Plugin is healthy.")
+				return nil
+			}
+
+			for _, issue := range result.Issues {
+				switch issue.Severity {
+				case "fail":
+					ux.Error("%s", issue.Message)
+				case "warn":
+					ux.Warning("%s", issue.Message)
+				default:
+					ux.Info("%s", issue.Message)
+				}
+				if issue.Fix != "" {
+					ux.Info("Fix: %s", issue.Fix)
+				}
+			}
+
+			if !result.Passed {
+				return fmt.Errorf("doctor found blocking issues")
+			}
+
 			return nil
 		},
 	}
@@ -241,6 +279,14 @@ func NewPluginPublishCommand() *cobra.Command {
 	var skipValidate bool
 	var draft bool
 	var prerelease bool
+	var coverImageURL string
+	var author string
+	var description string
+	var repository string
+	var updateOnly bool
+	var nonInteractive bool
+	var skipGitSync bool
+	var skipRegistryPR bool
 
 	cmd := &cobra.Command{
 		Use:   "publish [directory]",
@@ -253,11 +299,25 @@ func NewPluginPublishCommand() *cobra.Command {
 			}
 
 			opts := plugin.PublishOptions{
-				DryRun:       dryRun,
-				SkipBuild:    skipBuild,
-				SkipValidate: skipValidate,
-				Draft:        draft,
-				Prerelease:   prerelease,
+				DryRun:         dryRun,
+				SkipBuild:      skipBuild,
+				SkipValidate:   skipValidate,
+				Draft:          draft,
+				Prerelease:     prerelease,
+				CoverImageURL:  coverImageURL,
+				Author:         author,
+				Description:    description,
+				Repository:     repository,
+				UpdateOnly:     updateOnly,
+				SkipGitSync:    skipGitSync,
+				SkipRegistryPR: skipRegistryPR,
+			}
+
+			if len(args) == 0 && !nonInteractive {
+				printInteractivePublishTip("plugin")
+				if err := promptPluginPublishMetadata(dir, &opts); err != nil {
+					return err
+				}
 			}
 
 			result, err := plugin.Publish(dir, opts)
@@ -270,6 +330,9 @@ func NewPluginPublishCommand() *cobra.Command {
 				fmt.Println()
 				ux.Info("Release URL: %s", result.ReleaseURL)
 				ux.Info("Asset URL: %s", result.AssetURL)
+				if result.RegistryPR != "" {
+					ux.Info("Registry PR: %s", result.RegistryPR)
+				}
 			}
 
 			return nil
@@ -281,6 +344,14 @@ func NewPluginPublishCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&skipValidate, "skip-validate", false, "Skip validation step")
 	cmd.Flags().BoolVar(&draft, "draft", false, "Create release as draft")
 	cmd.Flags().BoolVar(&prerelease, "prerelease", false, "Mark release as prerelease")
+	cmd.Flags().BoolVar(&updateOnly, "update-only", false, "Update existing release and skip registry PR")
+	cmd.Flags().BoolVar(&nonInteractive, "no-interactive", false, "Disable interactive prompts")
+	cmd.Flags().BoolVar(&skipGitSync, "skip-git-sync", false, "Skip git add/commit/push before release")
+	cmd.Flags().BoolVar(&skipRegistryPR, "skip-registry-pr", false, "Skip opening registry pull request")
+	cmd.Flags().StringVar(&author, "author", "", "Override author for registry metadata")
+	cmd.Flags().StringVar(&description, "description", "", "Override description for registry metadata")
+	cmd.Flags().StringVar(&repository, "repository", "", "Override repository for registry metadata")
+	cmd.Flags().StringVar(&coverImageURL, "cover-image-url", "", "Cover image URL for registry listing")
 
 	return cmd
 }

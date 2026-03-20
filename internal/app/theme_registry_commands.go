@@ -82,15 +82,15 @@ func NewThemeCreateCommand() *cobra.Command {
 				opts.Author = author
 			}
 
-			ux.Step(fmt.Sprintf("Creating theme '%s'...", opts.Name))
+			ux.Step("Creating theme '%s'...", opts.Name)
 
 			if err := theme.Create(opts); err != nil {
-				ux.Error(fmt.Sprintf("Failed to create theme: %v", err))
+				ux.Error("Failed to create theme: %v", err)
 				return err
 			}
 
-			ux.Success(fmt.Sprintf("Theme '%s' created successfully!", opts.Name))
-			ux.Info(fmt.Sprintf("Directory: %s", opts.ID))
+			ux.Success("Theme '%s' created successfully!", opts.Name)
+			ux.Info("Directory: %s", opts.ID)
 			fmt.Println()
 			ux.Info("Next steps:")
 			fmt.Println("  cd " + opts.ID)
@@ -152,6 +152,14 @@ func NewThemePublishCommand() *cobra.Command {
 	var skipValidate bool
 	var draft bool
 	var prerelease bool
+	var coverImageURL string
+	var author string
+	var description string
+	var repository string
+	var updateOnly bool
+	var nonInteractive bool
+	var skipGitSync bool
+	var skipRegistryPR bool
 
 	cmd := &cobra.Command{
 		Use:   "publish [directory]",
@@ -164,10 +172,24 @@ func NewThemePublishCommand() *cobra.Command {
 			}
 
 			opts := theme.PublishOptions{
-				DryRun:       dryRun,
-				SkipValidate: skipValidate,
-				Draft:        draft,
-				Prerelease:   prerelease,
+				DryRun:         dryRun,
+				SkipValidate:   skipValidate,
+				Draft:          draft,
+				Prerelease:     prerelease,
+				CoverImageURL:  coverImageURL,
+				Author:         author,
+				Description:    description,
+				Repository:     repository,
+				UpdateOnly:     updateOnly,
+				SkipGitSync:    skipGitSync,
+				SkipRegistryPR: skipRegistryPR,
+			}
+
+			if len(args) == 0 && !nonInteractive {
+				printInteractivePublishTip("theme")
+				if err := promptThemePublishMetadata(dir, &opts); err != nil {
+					return err
+				}
 			}
 
 			result, err := theme.Publish(dir, opts)
@@ -180,6 +202,9 @@ func NewThemePublishCommand() *cobra.Command {
 				fmt.Println()
 				ux.Info("Release URL: %s", result.ReleaseURL)
 				ux.Info("Asset URL: %s", result.AssetURL)
+				if result.RegistryPR != "" {
+					ux.Info("Registry PR: %s", result.RegistryPR)
+				}
 			}
 
 			return nil
@@ -190,6 +215,14 @@ func NewThemePublishCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&skipValidate, "skip-validate", false, "Skip validation step")
 	cmd.Flags().BoolVar(&draft, "draft", false, "Create release as draft")
 	cmd.Flags().BoolVar(&prerelease, "prerelease", false, "Mark release as prerelease")
+	cmd.Flags().BoolVar(&updateOnly, "update-only", false, "Update existing release and skip registry PR")
+	cmd.Flags().BoolVar(&nonInteractive, "no-interactive", false, "Disable interactive prompts")
+	cmd.Flags().BoolVar(&skipGitSync, "skip-git-sync", false, "Skip git add/commit/push before release")
+	cmd.Flags().BoolVar(&skipRegistryPR, "skip-registry-pr", false, "Skip opening registry pull request")
+	cmd.Flags().StringVar(&author, "author", "", "Override author for registry metadata")
+	cmd.Flags().StringVar(&description, "description", "", "Override description for registry metadata")
+	cmd.Flags().StringVar(&repository, "repository", "", "Override repository for registry metadata")
+	cmd.Flags().StringVar(&coverImageURL, "cover-image-url", "", "Cover image URL for registry listing")
 
 	return cmd
 }

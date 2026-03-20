@@ -22,8 +22,8 @@ apps/cli/
     dev/                # Development mode: file watcher, link/unlink
     fsx/                # Filesystem utilities
     github/             # GitHub API client (go-github wrapper)
-    plugin/             # Plugin operations: create, build, validate, publish
-    registry/           # Registry operations (future)
+    plugin/             # Plugin operations: create, build, validate, doctor, publish
+    registry/           # Registry publish and index update helpers
     theme/              # Theme operations: create, validate, publish
     ux/                 # Terminal output: colors, banner, lipgloss styling
   pkg/
@@ -47,12 +47,13 @@ Guidelines:
 - `cortex plugin dev [dir]` - Development mode with file watcher and auto-rebuild
 - `cortex plugin link [dir]` - Symlink plugin to ~/.cortex/plugins/
 - `cortex plugin unlink [dir|id]` - Remove symlink
-- `cortex plugin publish [dir]` - Validate, build, zip, create GitHub release
+- `cortex plugin doctor [dir]` - Diagnose environment, structure, validation and publish readiness
+- `cortex plugin publish [dir]` - Build, strict-validate, zip, create or update GitHub release, create registry PR only for new release
 
 ### Theme Commands
 - `cortex theme create [name]` - Scaffold new CSS theme from template
 - `cortex theme validate [dir]` - Validate structure, manifest schema, CSS variables
-- `cortex theme publish [dir]` - Validate, zip, create GitHub release
+- `cortex theme publish [dir]` - Validate, zip, create or update GitHub release, create registry PR only for new release
 
 ### Auth Commands
 - `cortex login` - GitHub device flow authentication
@@ -72,6 +73,10 @@ Guidelines:
 Templates are embedded using `go:embed` and stored in:
 - `internal/plugin/templates/plugin/` - Plugin scaffold files
 - `internal/theme/templates/theme/` - Theme scaffold files
+
+Scaffold templates also include GitHub Actions workflows:
+- Plugin: `.github/workflows/ci-plugin.yml` and `.github/workflows/cd-plugin.yml`
+- Theme: `.github/workflows/ci-theme.yml` and `.github/workflows/cd-theme.yml`
 
 Template variables use `{{PLACEHOLDER}}` syntax:
 - `{{ID}}` - Plugin/theme ID (lowercase, alphanumeric, hyphens)
@@ -98,7 +103,21 @@ The validate command scans built output for forbidden patterns:
 - `dangerouslySetInnerHTML` - XSS risk
 - `<script>` tags - Inline scripts
 
-Plugins must use `@cortex/plugin-api` for all platform operations.
+Plugins must use `cortex-plugin-api` for all platform operations.
+
+## Registry Publish
+
+Publish commands update the registry repository `cortex-md/registry` by opening a pull request:
+
+- Plugin publish updates `plugins.json`
+- Theme publish updates `themes.json`
+
+Registry entries include:
+- id, name, author, description
+- coverImageUrl
+- repo
+
+The app should resolve latest release/download from `repo` at runtime.
 
 ## Theme Validation
 
@@ -138,6 +157,7 @@ The theme validate command checks:
 - use GitHub device flow for terminal-first UX
 - store tokens via OS keychain
 - support `login`, `logout`, and auth status checks
+- publish resolves token from `GITHUB_TOKEN` first, then keychain from `cortex login`
 - never persist tokens in plain text files
 
 ## Dependencies

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -214,6 +215,24 @@ func DeleteToken() error {
 func IsAuthenticated() bool {
 	_, err := GetToken()
 	return err == nil
+}
+
+func ResolveToken() (string, error) {
+	envToken := strings.TrimSpace(os.Getenv("GITHUB_TOKEN"))
+	if envToken != "" {
+		return envToken, nil
+	}
+
+	storedToken, err := GetToken()
+	if err == nil {
+		return storedToken, nil
+	}
+
+	if errors.Is(err, ErrNoToken) {
+		return "", ErrNoToken
+	}
+
+	return "", err
 }
 
 func CopyToClipboard(text string) error {

@@ -2,7 +2,10 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"os"
 
 	"github.com/google/go-github/v60/github"
 )
@@ -138,6 +141,12 @@ func (c *Client) CreateOrUpdateFile(ctx context.Context, path, message, content,
 
 	if sha != nil {
 		opts.SHA = sha
+		_, _, err := c.gh.Repositories.UpdateFile(ctx, c.owner, c.repo, path, opts)
+		if err != nil {
+			return fmt.Errorf("failed to update file: %w", err)
+		}
+
+		return nil
 	}
 
 	_, _, err := c.gh.Repositories.CreateFile(ctx, c.owner, c.repo, path, opts)
@@ -157,6 +166,10 @@ func (c *Client) GetFileContent(ctx context.Context, path, branch string) (strin
 
 	content, _, _, err := c.gh.Repositories.GetContents(ctx, c.owner, c.repo, path, opts)
 	if err != nil {
+		var githubError *github.ErrorResponse
+		if errors.As(err, &githubError) && githubError.Response != nil && githubError.Response.StatusCode == http.StatusNotFound {
+			return "", "", os.ErrNotExist
+		}
 		return "", "", fmt.Errorf("failed to get file content: %w", err)
 	}
 

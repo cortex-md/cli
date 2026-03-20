@@ -93,7 +93,7 @@ func Validate(dir string, opts ValidateOptions) (*ValidationResult, error) {
 
 	if opts.Strict && len(result.Warnings) > 0 {
 		for _, warn := range result.Warnings {
-			result.addError(warn)
+			result.addError("%s", warn)
 		}
 		result.Warnings = []string{}
 		result.Passed = false
@@ -234,10 +234,10 @@ func validateCSSFileSize(path string, schemeName string, result *ValidationResul
 	if size > maxCSSFileSizeError {
 		msg := fmt.Sprintf("CSS file too large for %s: %.2f KB (max: 200 KB)", schemeName, sizeKB)
 		if strict {
-			result.addError(msg)
+			result.addError("%s", msg)
 			result.Passed = false
 		} else {
-			result.addWarning(msg)
+			result.addWarning("%s", msg)
 		}
 	} else if size > maxCSSFileSizeWarning {
 		result.addWarning("CSS file is large for %s: %.2f KB (recommended: < 50 KB)", schemeName, sizeKB)
@@ -263,7 +263,7 @@ func (r *ValidationResult) Print() {
 
 	if len(r.Info) > 0 {
 		for _, info := range r.Info {
-			ux.Info(info)
+			ux.Info("%s", info)
 		}
 		fmt.Println()
 	}

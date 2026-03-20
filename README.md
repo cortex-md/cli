@@ -15,7 +15,7 @@ Official command-line tool for developing plugins and themes for Cortex.
 ### Via npm (recommended)
 
 ```bash
-npm install -g cortex-cli
+npm install -g @cortex.md/cli 
 ```
 
 ### From source
@@ -89,31 +89,6 @@ cortex plugin publish
 ### Theme
 
 - `cortex theme create [name]` - Create a new theme
-
-### Registry
-
-- `cortex registry sync` - Sync local cache
-
-## Configuration
-
-Global config is stored at `~/.config/cortex/config.json`:
-
-```json
-{
-  "github": {
-    "client_id": "",
-    "registry_repo": "cortex/registry",
-    "default_owner": ""
-  },
-  "paths": {
-    "plugins_dir": "~/.cortex/plugins",
-    "themes_dir": "~/.cortex/themes"
-  },
-  "log": {
-    "level": "info"
-  }
-}
-```
 
 ## Development
 

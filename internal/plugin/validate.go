@@ -100,7 +100,7 @@ func Validate(dir string, opts ValidateOptions) (*ValidationResult, error) {
 
 	if opts.Strict && len(result.Warnings) > 0 {
 		for _, warn := range result.Warnings {
-			result.addError(warn)
+			result.addError("%s", warn)
 		}
 		result.Warnings = []string{}
 		result.Passed = false
@@ -197,10 +197,10 @@ func scanContent(content string, filePath string, result *ValidationResult) {
 		if pattern.Pattern.MatchString(content) {
 			msg := fmt.Sprintf("%s in %s", pattern.Message, filePath)
 			if pattern.Severity == "critical" {
-				result.addError(msg)
+				result.addError("%s", msg)
 				result.Passed = false
 			} else {
-				result.addWarning(msg)
+				result.addWarning("%s", msg)
 			}
 		}
 	}
@@ -227,10 +227,10 @@ func validateBundleSize(dir string, m *manifest.PluginManifest, result *Validati
 	if size > maxBundleSizeError {
 		msg := fmt.Sprintf("Bundle size too large: %.2f MB (max: 5 MB)", sizeMB)
 		if strict {
-			result.addError(msg)
+			result.addError("%s", msg)
 			result.Passed = false
 		} else {
-			result.addWarning(msg)
+			result.addWarning("%s", msg)
 		}
 	} else if size > maxBundleSizeWarning {
 		result.addWarning("Bundle size is large: %.2f MB (recommended: < 1 MB)", sizeMB)
@@ -256,7 +256,7 @@ func (r *ValidationResult) Print() {
 
 	if len(r.Info) > 0 {
 		for _, info := range r.Info {
-			ux.Info(info)
+			ux.Info("%s", info)
 		}
 		fmt.Println()
 	}

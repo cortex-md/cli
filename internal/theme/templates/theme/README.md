@@ -19,6 +19,15 @@ This theme includes both dark and light variants:
 
 You can customize the theme by editing the CSS variables in the theme files.
 
+## GitHub Actions
+
+This template includes automated workflows in `.github/workflows/`:
+
+- `ci-theme.yml` runs strict theme validation on push/PR
+- `cd-theme.yml` publishes on tag push or manual dispatch
+
+For automated publish, ensure `GITHUB_TOKEN` is available in workflow context.
+
 ## License
 
 MIT

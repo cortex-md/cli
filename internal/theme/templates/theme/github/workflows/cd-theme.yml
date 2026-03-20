@@ -1,0 +1,30 @@
+name: Theme CD
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Cortex CLI
+        run: |
+          bun add -g cortex-cli
+          cortex -v
+
+      - name: Publish theme
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cortex theme publish . --no-interactive --skip-git-sync

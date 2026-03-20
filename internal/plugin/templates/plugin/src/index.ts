@@ -1,4 +1,4 @@
-import { CortexPlugin } from "@cortex/plugin-api"
+import { CortexPlugin } from "cortex-plugin-api"
 
 export default class {{CLASS_NAME}}Plugin extends CortexPlugin {
 	onload(): void {

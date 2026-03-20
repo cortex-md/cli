@@ -2,7 +2,9 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -30,6 +32,14 @@ type ReleaseAsset struct {
 	Name string
 	Path string
 }
+
+type CreateRepositoryOptions struct {
+	Name        string
+	Description string
+	Private     bool
+}
+
+var ErrNotFound = errors.New("github resource not found")
 
 func NewClient(token string) *Client {
 	ctx := context.Background()
@@ -83,6 +93,32 @@ func (c *Client) CreateRelease(ctx context.Context, opts ReleaseOptions) (*githu
 	return created, nil
 }
 
+func (c *Client) UpdateRelease(ctx context.Context, releaseID int64, opts ReleaseOptions) (*github.RepositoryRelease, error) {
+	if c.owner == "" || c.repo == "" {
+		return nil, fmt.Errorf("repository not set, call SetRepo first")
+	}
+
+	release := &github.RepositoryRelease{
+		TagName:              github.String(opts.TagName),
+		Name:                 github.String(opts.Name),
+		Body:                 github.String(opts.Body),
+		Draft:                github.Bool(opts.Draft),
+		Prerelease:           github.Bool(opts.Prerelease),
+		GenerateReleaseNotes: github.Bool(opts.GenerateNotes),
+	}
+
+	if opts.TargetCommitish != "" {
+		release.TargetCommitish = github.String(opts.TargetCommitish)
+	}
+
+	updated, _, err := c.gh.Repositories.EditRelease(ctx, c.owner, c.repo, releaseID, release)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update release: %w", err)
+	}
+
+	return updated, nil
+}
+
 func (c *Client) UploadReleaseAsset(ctx context.Context, releaseID int64, asset ReleaseAsset) (*github.ReleaseAsset, error) {
 	if c.owner == "" || c.repo == "" {
 		return nil, fmt.Errorf("repository not set, call SetRepo first")
@@ -111,6 +147,30 @@ func (c *Client) UploadReleaseAsset(ctx context.Context, releaseID int64, asset 
 	return uploaded, nil
 }
 
+func (c *Client) UpsertReleaseAsset(ctx context.Context, release *github.RepositoryRelease, asset ReleaseAsset) (*github.ReleaseAsset, error) {
+	if release == nil {
+		return nil, fmt.Errorf("release is required")
+	}
+
+	assetName := asset.Name
+	if assetName == "" {
+		assetName = filepath.Base(asset.Path)
+	}
+
+	for _, existing := range release.Assets {
+		if existing.GetName() != assetName {
+			continue
+		}
+
+		_, err := c.gh.Repositories.DeleteReleaseAsset(ctx, c.owner, c.repo, existing.GetID())
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete previous release asset: %w", err)
+		}
+	}
+
+	return c.UploadReleaseAsset(ctx, release.GetID(), asset)
+}
+
 func (c *Client) GetRelease(ctx context.Context, tag string) (*github.RepositoryRelease, error) {
 	if c.owner == "" || c.repo == "" {
 		return nil, fmt.Errorf("repository not set, call SetRepo first")
@@ -118,6 +178,10 @@ func (c *Client) GetRelease(ctx context.Context, tag string) (*github.Repository
 
 	release, _, err := c.gh.Repositories.GetReleaseByTag(ctx, c.owner, c.repo, tag)
 	if err != nil {
+		var githubError *github.ErrorResponse
+		if errors.As(err, &githubError) && githubError.Response != nil && githubError.Response.StatusCode == http.StatusNotFound {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("failed to get release: %w", err)
 	}
 
@@ -149,4 +213,20 @@ func (c *Client) ListReleases(ctx context.Context) ([]*github.RepositoryRelease,
 	}
 
 	return releases, nil
+}
+
+func (c *Client) CreateRepository(ctx context.Context, opts CreateRepositoryOptions) (*github.Repository, error) {
+	repository := &github.Repository{
+		Name:        github.String(opts.Name),
+		Description: github.String(opts.Description),
+		Private:     github.Bool(opts.Private),
+		AutoInit:    github.Bool(true),
+	}
+
+	created, _, err := c.gh.Repositories.Create(ctx, "", repository)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create repository: %w", err)
+	}
+
+	return created, nil
 }
