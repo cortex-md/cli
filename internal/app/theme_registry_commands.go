@@ -47,6 +47,18 @@ func NewThemeCreateCommand() *cobra.Command {
 				opts.Name = name
 			}
 
+			if opts.DisplayName == "" {
+				var displayName string
+				prompt := &survey.Input{
+					Message: "Display name:",
+					Default: opts.Name,
+				}
+				if err := survey.AskOne(prompt, &displayName); err != nil {
+					return err
+				}
+				opts.DisplayName = displayName
+			}
+
 			if opts.ID == "" {
 				var id string
 				prompt := &survey.Input{

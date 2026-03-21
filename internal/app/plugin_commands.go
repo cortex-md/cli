@@ -105,8 +105,8 @@ func NewPluginCreateCommand() *cobra.Command {
 			fmt.Println()
 			ux.Info("Next steps:")
 			fmt.Println("  cd " + opts.ID)
-			fmt.Println("  bun install")
-			fmt.Println("  bun run dev")
+			fmt.Println("  npm install   # or: bun install / pnpm install / yarn")
+			fmt.Println("  cortex plugin dev")
 
 			return nil
 		},

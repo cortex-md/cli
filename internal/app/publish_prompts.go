@@ -2,7 +2,6 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/cortex/cli/internal/plugin"
 	"github.com/cortex/cli/internal/theme"
+	"github.com/cortex/cli/internal/ux"
 	"github.com/cortex/cli/pkg/manifest"
 )
 
@@ -196,5 +196,5 @@ func firstNonEmpty(values ...string) string {
 }
 
 func printInteractivePublishTip(kind string) {
-	fmt.Printf("\nInteractive %s publish metadata\n\n", kind)
+	ux.Info("Fill in the metadata for the %s registry entry", kind)
 }

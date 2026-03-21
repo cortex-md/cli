@@ -9,6 +9,8 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,11 +22,16 @@ jobs:
 
       - name: Setup Cortex CLI
         run: |
-          bun add -g cortex-cli
+          bun add -g @cortex.md/cli
           cortex -v
 
       - name: Publish theme
+        # CORTEX_TOKEN must be a GitHub Personal Access Token with the `repo` scope.
+        # It is required for the registry PR step (forking cortex-md/registry and opening a PR).
+        # If CORTEX_TOKEN is not set, the workflow falls back to GITHUB_TOKEN, which can create
+        # the GitHub Release but will fail on the registry PR step.
+        # To skip the registry PR entirely, add --skip-registry-pr to the command below.
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.CORTEX_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           cortex theme publish . --no-interactive --skip-git-sync
