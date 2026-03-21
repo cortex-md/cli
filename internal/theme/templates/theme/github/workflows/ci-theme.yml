@@ -20,7 +20,7 @@ jobs:
 
       - name: Setup Cortex CLI
         run: |
-          bun add -g cortex-cli
+          bun add -g @cortex.md/cli
           cortex -v
 
       - name: Validate theme

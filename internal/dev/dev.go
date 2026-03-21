@@ -78,7 +78,7 @@ func Start(pluginDir string, opts DevOptions) error {
 	}
 
 	ux.Success("Development mode started")
-	ux.Info("Watching for changes in src/")
+	ux.Info("Watching for changes in src/ and manifest.json")
 	ux.Info("Press Ctrl+C to stop")
 	fmt.Println()
 

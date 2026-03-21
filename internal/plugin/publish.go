@@ -196,7 +196,14 @@ func Publish(dir string, opts PublishOptions) (*PublishResult, error) {
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("release created but registry PR failed: %w", err)
+		ux.Warning("Registry PR failed (release was created successfully): %v", err)
+		ux.Info("To submit to the registry manually, run: cortex plugin publish --skip-git-sync --skip-build --skip-validate --no-interactive --update-only")
+		return &PublishResult{
+			PluginID:   m.ID,
+			Version:    m.Version,
+			ReleaseURL: release.GetHTMLURL(),
+			AssetURL:   asset.GetBrowserDownloadURL(),
+		}, nil
 	}
 
 	ux.Success("Registry PR created: %s", prURL)
