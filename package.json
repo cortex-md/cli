@@ -1,6 +1,6 @@
 {
 	"name": "@cortex.md/cli",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Official CLI for Cortex plugin and theme development",
 	"bin": {
 		"cortex": "./bin/cortex"
