@@ -7,7 +7,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/cortex/cli"
+		"url": "https://github.com/cortex-md/cli"
 	},
 	"keywords": [
 		"cortex",
