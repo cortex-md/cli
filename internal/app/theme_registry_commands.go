@@ -16,7 +16,7 @@ import (
 
 type registrySubmitRunner func(context.Context, string) (string, error)
 
-var defaultPublishManifestPath = filepath.Join("dist", "cortex-publish", "publish.json")
+var defaultBuildManifestPath = filepath.Join("dist", "cortex-build", "build.json")
 
 func NewThemeCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -295,17 +295,17 @@ func NewRegistrySubmitCommand() *cobra.Command {
 
 func newRegistrySubmitCommand(run registrySubmitRunner) *cobra.Command {
 	return &cobra.Command{
-		Use:   "submit [publish-json]",
-		Short: "Submit prepared publish metadata to the registry",
+		Use:   "submit [build-json]",
+		Short: "Submit prepared release build metadata to the registry",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			publishJSONPath := defaultPublishManifestPath
+			buildJSONPath := defaultBuildManifestPath
 			if len(args) > 0 {
-				publishJSONPath = args[0]
+				buildJSONPath = args[0]
 			}
 
 			ux.Step("Submitting registry metadata...")
-			prURL, err := run(cmd.Context(), publishJSONPath)
+			prURL, err := run(cmd.Context(), buildJSONPath)
 			if err != nil {
 				ux.Error("Registry submit failed: %v", err)
 				return err

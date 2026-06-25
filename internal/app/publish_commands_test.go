@@ -20,7 +20,7 @@ func TestThemePublishHelpOmitsLegacyFlags(t *testing.T) {
 	assertOmitsLegacyPublishFlags(t, output)
 }
 
-func TestRegistrySubmitRunsWithPublishJSON(t *testing.T) {
+func TestRegistrySubmitUsesDefaultBuildManifest(t *testing.T) {
 	called := false
 	var gotPath string
 	cmd := newRegistrySubmitCommand(func(ctx context.Context, path string) (string, error) {
@@ -35,8 +35,8 @@ func TestRegistrySubmitRunsWithPublishJSON(t *testing.T) {
 	if !called {
 		t.Fatal("expected registry submit runner to be called")
 	}
-	if gotPath != filepath.Join("dist", "cortex-publish", "publish.json") {
-		t.Fatalf("default publish json path = %q", gotPath)
+	if gotPath != filepath.Join("dist", "cortex-build", "build.json") {
+		t.Fatalf("default build json path = %q", gotPath)
 	}
 
 	cmd = newRegistrySubmitCommand(func(ctx context.Context, path string) (string, error) {
@@ -45,7 +45,7 @@ func TestRegistrySubmitRunsWithPublishJSON(t *testing.T) {
 		return "https://github.com/cortex-md/registry/pull/1", nil
 	})
 	called = false
-	cmd.SetArgs([]string{"dist/cortex-publish/publish.json"})
+	cmd.SetArgs([]string{"dist/cortex-build/build.json"})
 	if err := cmd.ExecuteContext(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -53,8 +53,8 @@ func TestRegistrySubmitRunsWithPublishJSON(t *testing.T) {
 	if !called {
 		t.Fatal("expected registry submit runner to be called")
 	}
-	if gotPath != "dist/cortex-publish/publish.json" {
-		t.Fatalf("publish json path = %q", gotPath)
+	if gotPath != "dist/cortex-build/build.json" {
+		t.Fatalf("build json path = %q", gotPath)
 	}
 }
 

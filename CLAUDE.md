@@ -49,15 +49,15 @@ Guidelines:
 - `cortex plugin link [dir]` - Symlink plugin to ~/.cortex/plugins/
 - `cortex plugin unlink [dir|id]` - Remove symlink
 - `cortex plugin doctor [dir]` - Diagnose environment, structure, validation and publish readiness
-- `cortex plugin publish [dir]` - Build, strict-validate, and prepare local release artifacts in `dist/cortex-publish`
+- `cortex plugin publish [dir]` - Build, strict-validate, and prepare local release artifacts in `dist/cortex-build`
 
 ### Theme Commands
 - `cortex theme create [name]` - Scaffold new CSS theme from template
 - `cortex theme validate [dir]` - Validate structure, manifest schema, CSS variables
-- `cortex theme publish [dir]` - Strict-validate and prepare local release artifacts in `dist/cortex-publish`
+- `cortex theme publish [dir]` - Strict-validate and prepare local release artifacts in `dist/cortex-build`
 
 ### Registry Commands
-- `cortex registry submit [publish-json]` - Open a registry PR from prepared publish metadata
+- `cortex registry submit [build-json]` - Open a registry PR from prepared release build metadata
 
 ### Auth Commands
 - `cortex login` - GitHub device flow authentication
@@ -111,20 +111,20 @@ The validate command scans built output for forbidden patterns:
 - `fs`, `node:fs` - Direct Node.js filesystem
 
 **Warning:**
-- `path`, `node:path` - Should use plugin-api utilities
+- `path`, `node:path` - Should use API utilities
 - `dangerouslySetInnerHTML` - XSS risk
 - `<script>` tags - Inline scripts
 
-Plugins must use `@cortex.md/plugin-api` for all platform operations.
+Plugins must use `@cortex.md/api` for all platform operations.
 
 ## Publish and Registry
 
 Plugin and theme publish commands are local preparation commands. They never create repositories,
 commit, push, create GitHub Releases, or require GitHub tokens. They write:
 
-- `dist/cortex-publish/publish.json`
-- `dist/cortex-publish/release-notes.md`
-- `dist/cortex-publish/assets/manifest.json`
+- `dist/cortex-build/build.json`
+- `dist/cortex-build/release-notes.md`
+- `dist/cortex-build/assets/manifest.json`
 - plugin bundles or theme CSS assets
 - `<id>-<version>.zip`
 
@@ -132,7 +132,7 @@ The scaffolded CD workflows run publish and create or update the GitHub Release 
 assets when the pushed tag matches the manifest version. They use GitHub's built-in `GITHUB_TOKEN`
 for the release and do not require `CORTEX_TOKEN` by default.
 
-`cortex registry submit [publish-json]` updates the registry repository `cortex-md/registry` by
+`cortex registry submit [build-json]` updates the registry repository `cortex-md/registry` by
 opening a pull request. Registry submission is recommended as a local follow-up after the release is
 live:
 

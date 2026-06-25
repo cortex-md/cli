@@ -40,7 +40,7 @@ Prepare local release artifacts:
 cortex plugin publish
 ```
 
-The command writes `dist/cortex-publish/publish.json`, release notes, release assets, and an
+The command writes `dist/cortex-build/build.json`, release notes, release assets, and an
 installable ZIP. Push a version tag to let GitHub Actions create or update the GitHub Release:
 
 ```bash

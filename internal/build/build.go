@@ -1,4 +1,4 @@
-package publish
+package build
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ import (
 
 const (
 	SchemaVersion        = 1
-	OutputDirName        = "cortex-publish"
+	OutputDirName        = "cortex-build"
 	DefaultRegistryOwner = "cortex-md"
 	DefaultRegistryRepo  = "registry"
 	DefaultRegistryBase  = "main"
@@ -108,12 +108,12 @@ type PrepareOptions struct {
 }
 
 type Result struct {
-	OutputDir           string
-	AssetsDir           string
-	PublishManifestPath string
-	ReleaseNotesPath    string
-	ArchivePath         string
-	Manifest            Manifest
+	OutputDir         string
+	AssetsDir         string
+	BuildManifestPath string
+	ReleaseNotesPath  string
+	ArchivePath       string
+	Manifest          Manifest
 }
 
 type packageJSON struct {
@@ -210,22 +210,22 @@ func Prepare(opts PrepareOptions) (*Result, error) {
 		},
 	}
 
-	publishManifestPath := filepath.Join(outputDir, "publish.json")
+	buildManifestPath := filepath.Join(outputDir, "build.json")
 	content, err := json.MarshalIndent(manifest, "", "\t")
 	if err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(publishManifestPath, append(content, '\n'), 0o644); err != nil {
+	if err := os.WriteFile(buildManifestPath, append(content, '\n'), 0o644); err != nil {
 		return nil, err
 	}
 
 	return &Result{
-		OutputDir:           outputDir,
-		AssetsDir:           assetsDir,
-		PublishManifestPath: publishManifestPath,
-		ReleaseNotesPath:    releaseNotesPath,
-		ArchivePath:         archivePath,
-		Manifest:            manifest,
+		OutputDir:         outputDir,
+		AssetsDir:         assetsDir,
+		BuildManifestPath: buildManifestPath,
+		ReleaseNotesPath:  releaseNotesPath,
+		ArchivePath:       archivePath,
+		Manifest:          manifest,
 	}, nil
 }
 

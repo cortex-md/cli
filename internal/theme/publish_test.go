@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/cortex/cli/internal/publish"
+	"github.com/cortex/cli/internal/build"
 	"github.com/cortex/cli/pkg/manifest"
 )
 
@@ -78,7 +78,7 @@ func TestPublishPreparesLocalArtifactsWithoutGithubToken(t *testing.T) {
 
 	for _, path := range []string{
 		result.OutputDir,
-		result.PublishManifestPath,
+		result.BuildManifestPath,
 		result.ReleaseNotesPath,
 		result.ArchivePath,
 		filepath.Join(result.OutputDir, "assets", "manifest.json"),
@@ -91,21 +91,21 @@ func TestPublishPreparesLocalArtifactsWithoutGithubToken(t *testing.T) {
 		}
 	}
 
-	publishManifest, err := publish.LoadManifest(result.PublishManifestPath)
+	buildManifest, err := build.LoadManifest(result.BuildManifestPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if publishManifest.Kind != publish.KindTheme {
-		t.Fatalf("kind = %s, want theme", publishManifest.Kind)
+	if buildManifest.Kind != build.KindTheme {
+		t.Fatalf("kind = %s, want theme", buildManifest.Kind)
 	}
-	if publishManifest.TagName != "v1.2.3" {
-		t.Fatalf("tagName = %s, want v1.2.3", publishManifest.TagName)
+	if buildManifest.TagName != "v1.2.3" {
+		t.Fatalf("tagName = %s, want v1.2.3", buildManifest.TagName)
 	}
-	if publishManifest.Registry.IndexFile != "themes.json" {
-		t.Fatalf("indexFile = %s, want themes.json", publishManifest.Registry.IndexFile)
+	if buildManifest.Registry.IndexFile != "themes.json" {
+		t.Fatalf("indexFile = %s, want themes.json", buildManifest.Registry.IndexFile)
 	}
-	if publishManifest.Registry.Entry.Repo != "furqas/local-theme" {
-		t.Fatalf("repo = %s, want furqas/local-theme", publishManifest.Registry.Entry.Repo)
+	if buildManifest.Registry.Entry.Repo != "furqas/local-theme" {
+		t.Fatalf("repo = %s, want furqas/local-theme", buildManifest.Registry.Entry.Repo)
 	}
 }
 

@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cortex/cli/internal/publish"
+	"github.com/cortex/cli/internal/build"
 	"github.com/cortex/cli/internal/ux"
 	"github.com/cortex/cli/pkg/manifest"
 )
@@ -13,13 +13,13 @@ import (
 type PublishOptions struct{}
 
 type PublishResult struct {
-	PluginID            string
-	Version             string
-	OutputDir           string
-	PublishManifestPath string
-	ReleaseNotesPath    string
-	ArchivePath         string
-	Assets              []publish.Asset
+	PluginID          string
+	Version           string
+	OutputDir         string
+	BuildManifestPath string
+	ReleaseNotesPath  string
+	ArchivePath       string
+	Assets            []build.Asset
 }
 
 func Publish(dir string, _ PublishOptions) (*PublishResult, error) {
@@ -34,13 +34,13 @@ func Publish(dir string, _ PublishOptions) (*PublishResult, error) {
 	}
 
 	metadata := pluginMetadata(m)
-	if _, err := publish.ResolveMetadata(absDir, metadata); err != nil {
+	if _, err := build.ResolveMetadata(absDir, metadata); err != nil {
 		return nil, err
 	}
 
 	ux.Info("Preparing plugin release for %s v%s", m.Name, m.Version)
 
-	if err := publish.CleanOutput(absDir); err != nil {
+	if err := build.CleanOutput(absDir); err != nil {
 		return nil, err
 	}
 
@@ -69,8 +69,8 @@ func Publish(dir string, _ PublishOptions) (*PublishResult, error) {
 		return nil, err
 	}
 
-	ux.Step("Writing publish artifacts...")
-	prepared, err := publish.Prepare(publish.PrepareOptions{
+	ux.Step("Writing release build artifacts...")
+	prepared, err := build.Prepare(build.PrepareOptions{
 		Directory:    absDir,
 		Metadata:     metadata,
 		Assets:       assets,
@@ -83,19 +83,19 @@ func Publish(dir string, _ PublishOptions) (*PublishResult, error) {
 	printPreparedRelease(prepared)
 
 	return &PublishResult{
-		PluginID:            m.ID,
-		Version:             m.Version,
-		OutputDir:           prepared.OutputDir,
-		PublishManifestPath: prepared.PublishManifestPath,
-		ReleaseNotesPath:    prepared.ReleaseNotesPath,
-		ArchivePath:         prepared.ArchivePath,
-		Assets:              prepared.Manifest.Assets,
+		PluginID:          m.ID,
+		Version:           m.Version,
+		OutputDir:         prepared.OutputDir,
+		BuildManifestPath: prepared.BuildManifestPath,
+		ReleaseNotesPath:  prepared.ReleaseNotesPath,
+		ArchivePath:       prepared.ArchivePath,
+		Assets:            prepared.Manifest.Assets,
 	}, nil
 }
 
-func pluginMetadata(m *manifest.PluginManifest) publish.MetadataInput {
-	return publish.MetadataInput{
-		Kind:           publish.KindPlugin,
+func pluginMetadata(m *manifest.PluginManifest) build.MetadataInput {
+	return build.MetadataInput{
+		Kind:           build.KindPlugin,
 		ID:             m.ID,
 		Name:           m.Name,
 		Version:        m.Version,
@@ -107,7 +107,7 @@ func pluginMetadata(m *manifest.PluginManifest) publish.MetadataInput {
 	}
 }
 
-func pluginReleaseAssets(dir string, m *manifest.PluginManifest) ([]publish.SourceAsset, error) {
+func pluginReleaseAssets(dir string, m *manifest.PluginManifest) ([]build.SourceAsset, error) {
 	manifestPath := filepath.Join(dir, "manifest.json")
 	mainPath := filepath.Join(dir, m.Main)
 	if !fileExists(manifestPath) {
@@ -117,30 +117,30 @@ func pluginReleaseAssets(dir string, m *manifest.PluginManifest) ([]publish.Sour
 		return nil, fmt.Errorf("main entry file not found: %s", m.Main)
 	}
 
-	assets := []publish.SourceAsset{
+	assets := []build.SourceAsset{
 		{Name: "manifest.json", Path: manifestPath},
 		{Name: filepath.Base(m.Main), Path: mainPath},
 	}
 
 	stylesPath := filepath.Join(dir, "styles.css")
 	if fileExists(stylesPath) {
-		assets = append(assets, publish.SourceAsset{Name: "styles.css", Path: stylesPath})
+		assets = append(assets, build.SourceAsset{Name: "styles.css", Path: stylesPath})
 	}
 
 	return assets, nil
 }
 
-func pluginArchiveFiles(dir string) ([]publish.ArchiveFile, error) {
-	archiveFiles := []publish.ArchiveFile{}
+func pluginArchiveFiles(dir string) ([]build.ArchiveFile, error) {
+	archiveFiles := []build.ArchiveFile{}
 	for _, name := range []string{"manifest.json", "package.json", "README.md", "LICENSE"} {
 		path := filepath.Join(dir, name)
 		if fileExists(path) {
-			archiveFiles = append(archiveFiles, publish.ArchiveFile{Name: name, Path: path})
+			archiveFiles = append(archiveFiles, build.ArchiveFile{Name: name, Path: path})
 		}
 	}
 
 	distDir := filepath.Join(dir, "dist")
-	outputDir := publish.OutputDir(dir)
+	outputDir := build.OutputDir(dir)
 	if err := filepath.WalkDir(distDir, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -156,7 +156,7 @@ func pluginArchiveFiles(dir string) ([]publish.ArchiveFile, error) {
 		if err != nil {
 			return err
 		}
-		archiveFiles = append(archiveFiles, publish.ArchiveFile{
+		archiveFiles = append(archiveFiles, build.ArchiveFile{
 			Name: filepath.ToSlash(relPath),
 			Path: path,
 		})
@@ -168,9 +168,9 @@ func pluginArchiveFiles(dir string) ([]publish.ArchiveFile, error) {
 	return archiveFiles, nil
 }
 
-func printPreparedRelease(result *publish.Result) {
-	ux.Success("Publish artifacts ready: %s", ux.Path(result.OutputDir))
-	ux.Info("Publish manifest: %s", ux.Path(result.PublishManifestPath))
+func printPreparedRelease(result *build.Result) {
+	ux.Success("Release build artifacts ready: %s", ux.Path(result.OutputDir))
+	ux.Info("Build manifest: %s", ux.Path(result.BuildManifestPath))
 	ux.Info("Release notes: %s", ux.Path(result.ReleaseNotesPath))
 	ux.Info("Release assets:")
 	for _, asset := range result.Manifest.Assets {

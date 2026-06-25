@@ -34,7 +34,7 @@ jobs:
 
       - name: Verify tag matches manifest version
         run: |
-          MANIFEST="dist/cortex-publish/publish.json"
+          MANIFEST="dist/cortex-build/build.json"
           EXPECTED_TAG="$(jq -r ".tagName" "$MANIFEST")"
 
           if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "$EXPECTED_TAG" ]; then
@@ -48,15 +48,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          MANIFEST="dist/cortex-publish/publish.json"
+          MANIFEST="dist/cortex-build/build.json"
           TAG="$(jq -r ".tagName" "$MANIFEST")"
           TITLE="$(jq -r ".releaseName" "$MANIFEST")"
           NOTES="$(jq -r ".releaseNotes" "$MANIFEST")"
-          NOTES_PATH="dist/cortex-publish/$NOTES"
+          NOTES_PATH="dist/cortex-build/$NOTES"
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release edit "$TAG" --title "$TITLE" --notes-file "$NOTES_PATH"
-            gh release upload "$TAG" dist/cortex-publish/assets/* --clobber
+            gh release upload "$TAG" dist/cortex-build/assets/* --clobber
           else
-            gh release create "$TAG" dist/cortex-publish/assets/* --title "$TITLE" --notes-file "$NOTES_PATH"
+            gh release create "$TAG" dist/cortex-build/assets/* --title "$TITLE" --notes-file "$NOTES_PATH"
           fi

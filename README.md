@@ -59,11 +59,11 @@ cortex plugin validate
 cortex plugin publish
 ```
 
-Publishing prepares local release artifacts in `dist/cortex-publish`: `publish.json`, release
+Publishing prepares local release artifacts in `dist/cortex-build`: `build.json`, release
 notes, Marketplace-ready assets, and an installable ZIP. The scaffolded GitHub Actions CD workflow
 publishes those artifacts to GitHub Releases when you push a matching `v*` tag. After the release
 is live, run `cortex registry submit` locally to open the registry pull request from the generated
-publish manifest.
+build manifest.
 
 ## Commands
 
@@ -97,7 +97,7 @@ publish manifest.
 
 ### Registry
 
-- `cortex registry submit [publish-json]` - Open a registry pull request from prepared publish metadata
+- `cortex registry submit [build-json]` - Open a registry pull request from prepared release build metadata
 
 ## Development
 

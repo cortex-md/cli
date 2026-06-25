@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/cortex/cli/internal/publish"
+	"github.com/cortex/cli/internal/build"
 	"github.com/cortex/cli/internal/ux"
 	"github.com/cortex/cli/pkg/manifest"
 )
@@ -13,13 +13,13 @@ import (
 type PublishOptions struct{}
 
 type PublishResult struct {
-	ThemeID             string
-	Version             string
-	OutputDir           string
-	PublishManifestPath string
-	ReleaseNotesPath    string
-	ArchivePath         string
-	Assets              []publish.Asset
+	ThemeID           string
+	Version           string
+	OutputDir         string
+	BuildManifestPath string
+	ReleaseNotesPath  string
+	ArchivePath       string
+	Assets            []build.Asset
 }
 
 func Publish(dir string, _ PublishOptions) (*PublishResult, error) {
@@ -34,13 +34,13 @@ func Publish(dir string, _ PublishOptions) (*PublishResult, error) {
 	}
 
 	metadata := themeMetadata(m)
-	if _, err := publish.ResolveMetadata(absDir, metadata); err != nil {
+	if _, err := build.ResolveMetadata(absDir, metadata); err != nil {
 		return nil, err
 	}
 
 	ux.Info("Preparing theme release for %s v%s", m.Name, m.Version)
 
-	if err := publish.CleanOutput(absDir); err != nil {
+	if err := build.CleanOutput(absDir); err != nil {
 		return nil, err
 	}
 
@@ -64,8 +64,8 @@ func Publish(dir string, _ PublishOptions) (*PublishResult, error) {
 		return nil, err
 	}
 
-	ux.Step("Writing publish artifacts...")
-	prepared, err := publish.Prepare(publish.PrepareOptions{
+	ux.Step("Writing release build artifacts...")
+	prepared, err := build.Prepare(build.PrepareOptions{
 		Directory:    absDir,
 		Metadata:     metadata,
 		Assets:       assets,
@@ -78,19 +78,19 @@ func Publish(dir string, _ PublishOptions) (*PublishResult, error) {
 	printPreparedThemeRelease(prepared)
 
 	return &PublishResult{
-		ThemeID:             m.ID,
-		Version:             m.Version,
-		OutputDir:           prepared.OutputDir,
-		PublishManifestPath: prepared.PublishManifestPath,
-		ReleaseNotesPath:    prepared.ReleaseNotesPath,
-		ArchivePath:         prepared.ArchivePath,
-		Assets:              prepared.Manifest.Assets,
+		ThemeID:           m.ID,
+		Version:           m.Version,
+		OutputDir:         prepared.OutputDir,
+		BuildManifestPath: prepared.BuildManifestPath,
+		ReleaseNotesPath:  prepared.ReleaseNotesPath,
+		ArchivePath:       prepared.ArchivePath,
+		Assets:            prepared.Manifest.Assets,
 	}, nil
 }
 
-func themeMetadata(m *manifest.ThemeManifest) publish.MetadataInput {
-	return publish.MetadataInput{
-		Kind:           publish.KindTheme,
+func themeMetadata(m *manifest.ThemeManifest) build.MetadataInput {
+	return build.MetadataInput{
+		Kind:           build.KindTheme,
 		ID:             m.ID,
 		Name:           m.Name,
 		Version:        m.Version,
@@ -102,13 +102,13 @@ func themeMetadata(m *manifest.ThemeManifest) publish.MetadataInput {
 	}
 }
 
-func themeReleaseAssets(dir string, m *manifest.ThemeManifest) ([]publish.SourceAsset, error) {
+func themeReleaseAssets(dir string, m *manifest.ThemeManifest) ([]build.SourceAsset, error) {
 	manifestPath := filepath.Join(dir, "manifest.json")
 	if !fileExists(manifestPath) {
 		return nil, fmt.Errorf("manifest.json not found")
 	}
 
-	assets := []publish.SourceAsset{{Name: "manifest.json", Path: manifestPath}}
+	assets := []build.SourceAsset{{Name: "manifest.json", Path: manifestPath}}
 	seen := map[string]bool{"manifest.json": true}
 	for _, schemeName := range sortedColorschemeNames(m.Colorschemes) {
 		cleanPath := filepath.Clean(m.Colorschemes[schemeName])
@@ -122,18 +122,18 @@ func themeReleaseAssets(dir string, m *manifest.ThemeManifest) ([]publish.Source
 			continue
 		}
 		seen[assetName] = true
-		assets = append(assets, publish.SourceAsset{Name: assetName, Path: fullPath})
+		assets = append(assets, build.SourceAsset{Name: assetName, Path: fullPath})
 	}
 
 	return assets, nil
 }
 
-func themeArchiveFiles(dir string, m *manifest.ThemeManifest) ([]publish.ArchiveFile, error) {
-	archiveFiles := []publish.ArchiveFile{}
+func themeArchiveFiles(dir string, m *manifest.ThemeManifest) ([]build.ArchiveFile, error) {
+	archiveFiles := []build.ArchiveFile{}
 	for _, name := range []string{"manifest.json", "package.json", "README.md", "LICENSE"} {
 		path := filepath.Join(dir, name)
 		if fileExists(path) {
-			archiveFiles = append(archiveFiles, publish.ArchiveFile{Name: name, Path: path})
+			archiveFiles = append(archiveFiles, build.ArchiveFile{Name: name, Path: path})
 		}
 	}
 
@@ -149,7 +149,7 @@ func themeArchiveFiles(dir string, m *manifest.ThemeManifest) ([]publish.Archive
 			continue
 		}
 		seen[zipPath] = true
-		archiveFiles = append(archiveFiles, publish.ArchiveFile{Name: zipPath, Path: fullPath})
+		archiveFiles = append(archiveFiles, build.ArchiveFile{Name: zipPath, Path: fullPath})
 	}
 
 	return archiveFiles, nil
@@ -164,9 +164,9 @@ func sortedColorschemeNames(colorschemes map[string]string) []string {
 	return names
 }
 
-func printPreparedThemeRelease(result *publish.Result) {
-	ux.Success("Publish artifacts ready: %s", ux.Path(result.OutputDir))
-	ux.Info("Publish manifest: %s", ux.Path(result.PublishManifestPath))
+func printPreparedThemeRelease(result *build.Result) {
+	ux.Success("Release build artifacts ready: %s", ux.Path(result.OutputDir))
+	ux.Info("Build manifest: %s", ux.Path(result.BuildManifestPath))
 	ux.Info("Release notes: %s", ux.Path(result.ReleaseNotesPath))
 	ux.Info("Release assets:")
 	for _, asset := range result.Manifest.Assets {

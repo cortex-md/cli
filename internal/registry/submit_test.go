@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-func TestLoadSubmitOptionsUsesPublishManifestRegistryData(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "publish.json")
+func TestLoadSubmitOptionsUsesBuildManifestRegistryData(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "build.json")
 	if err := os.WriteFile(path, []byte(`{
 		"schemaVersion": 1,
 		"kind": "theme",

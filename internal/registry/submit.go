@@ -5,12 +5,12 @@ import (
 	"fmt"
 
 	"github.com/cortex/cli/internal/auth"
+	"github.com/cortex/cli/internal/build"
 	gh "github.com/cortex/cli/internal/github"
-	"github.com/cortex/cli/internal/publish"
 )
 
-func Submit(ctx context.Context, publishJSONPath string) (string, error) {
-	opts, err := LoadSubmitOptions(publishJSONPath)
+func Submit(ctx context.Context, buildJSONPath string) (string, error) {
+	opts, err := LoadSubmitOptions(buildJSONPath)
 	if err != nil {
 		return "", err
 	}
@@ -24,26 +24,26 @@ func Submit(ctx context.Context, publishJSONPath string) (string, error) {
 	return PublishToRegistry(ctx, client, opts)
 }
 
-func LoadSubmitOptions(publishJSONPath string) (PublishIndexOptions, error) {
-	publishManifest, err := publish.LoadManifest(publishJSONPath)
+func LoadSubmitOptions(buildJSONPath string) (PublishIndexOptions, error) {
+	buildManifest, err := build.LoadManifest(buildJSONPath)
 	if err != nil {
 		return PublishIndexOptions{}, err
 	}
 
 	return PublishIndexOptions{
-		RegistryOwner: firstNonEmpty(publishManifest.Registry.Owner, publish.DefaultRegistryOwner),
-		RegistryRepo:  firstNonEmpty(publishManifest.Registry.Repo, publish.DefaultRegistryRepo),
-		BaseBranch:    firstNonEmpty(publishManifest.Registry.BaseBranch, publish.DefaultRegistryBase),
-		IndexFile:     publishManifest.Registry.IndexFile,
-		Kind:          string(publishManifest.Kind),
+		RegistryOwner: firstNonEmpty(buildManifest.Registry.Owner, build.DefaultRegistryOwner),
+		RegistryRepo:  firstNonEmpty(buildManifest.Registry.Repo, build.DefaultRegistryRepo),
+		BaseBranch:    firstNonEmpty(buildManifest.Registry.BaseBranch, build.DefaultRegistryBase),
+		IndexFile:     buildManifest.Registry.IndexFile,
+		Kind:          string(buildManifest.Kind),
 		Entry: IndexEntry{
-			ID:            publishManifest.Registry.Entry.ID,
-			Name:          publishManifest.Registry.Entry.Name,
-			Author:        publishManifest.Registry.Entry.Author,
-			AuthorURL:     publishManifest.Registry.Entry.AuthorURL,
-			Description:   publishManifest.Registry.Entry.Description,
-			CoverImageURL: publishManifest.Registry.Entry.CoverImageURL,
-			Repo:          publishManifest.Registry.Entry.Repo,
+			ID:            buildManifest.Registry.Entry.ID,
+			Name:          buildManifest.Registry.Entry.Name,
+			Author:        buildManifest.Registry.Entry.Author,
+			AuthorURL:     buildManifest.Registry.Entry.AuthorURL,
+			Description:   buildManifest.Registry.Entry.Description,
+			CoverImageURL: buildManifest.Registry.Entry.CoverImageURL,
+			Repo:          buildManifest.Registry.Entry.Repo,
 		},
 	}, nil
 }
