@@ -1,0 +1,62 @@
+name: Plugin CD
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Cortex CLI
+        run: |
+          bun add -g @cortex.md/cli
+          cortex -v
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Prepare release artifacts
+        run: cortex plugin publish .
+
+      - name: Verify tag matches manifest version
+        run: |
+          MANIFEST="dist/cortex-publish/publish.json"
+          EXPECTED_TAG="$(jq -r ".tagName" "$MANIFEST")"
+
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "$EXPECTED_TAG" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match manifest version tag ${EXPECTED_TAG}"
+            exit 1
+          fi
+
+          echo "Release tag: ${EXPECTED_TAG}"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          MANIFEST="dist/cortex-publish/publish.json"
+          TAG="$(jq -r ".tagName" "$MANIFEST")"
+          TITLE="$(jq -r ".releaseName" "$MANIFEST")"
+          NOTES="$(jq -r ".releaseNotes" "$MANIFEST")"
+          NOTES_PATH="dist/cortex-publish/$NOTES"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TITLE" --notes-file "$NOTES_PATH"
+            gh release upload "$TAG" dist/cortex-publish/assets/* --clobber
+          else
+            gh release create "$TAG" dist/cortex-publish/assets/* --title "$TITLE" --notes-file "$NOTES_PATH"
+          fi

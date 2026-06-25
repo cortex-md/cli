@@ -1,0 +1,96 @@
+:root {
+	/* Background colors */
+	--bg-primary: #111110;
+	--bg-secondary: #1a1918;
+	--bg-tertiary: #222120;
+	--bg-elevated: #222120;
+	--bg-hover: #2c2b2a;
+	--bg-active: #414040;
+	--bg-selected: #241800;
+	--bg-code: #1a1918;
+	--bg-tag: #222120;
+
+	/* Text colors */
+	--text-primary: #f2f2f1;
+	--text-secondary: #d4d3d1;
+	--text-muted: #9e9c99;
+	--text-disabled: #6a6866;
+	--text-placeholder: #6a6866;
+	--text-on-accent: #0a0a09;
+
+	/* Accent colors */
+	--accent-default: #e8a83c;
+	--accent-hover: #f5c265;
+	--accent-active: #fada9a;
+	--accent-subtle: #241800;
+	--accent-border: #e8a83c;
+	--accent-text: #f5c265;
+
+	/* Link colors */
+	--link-default: #f5c265;
+	--link-hover: #fada9a;
+	--link-broken: #e05252;
+
+	/* Border colors */
+	--border-default: #414040;
+	--border-subtle: #2c2b2a;
+	--border-strong: #9e9c99;
+	--border-focus: #e8a83c;
+
+	/* Syntax highlighting */
+	--syntax-keyword: #f5c265;
+	--syntax-string: #7ec89a;
+	--syntax-comment: #6a6866;
+	--syntax-number: #e08080;
+	--syntax-function: #b0a0e0;
+	--syntax-type: #f5c265;
+	--syntax-operator: #d4d3d1;
+	--syntax-property: #c8a0e0;
+	--syntax-heading: #f5c265;
+	--syntax-meta: #6a6866;
+
+	/* Status colors */
+	--status-error: #e05252;
+	--status-error-bg: #2a0a0a;
+	--status-success: #4a9b6f;
+	--status-success-bg: #0a2015;
+	--status-warning: #d4a017;
+	--status-warning-bg: #1e1500;
+
+	/* Component-specific */
+	--btn-primary-bg: #f2f2f1;
+	--btn-primary-text: #0a0a09;
+	--btn-primary-hover: #ffffff;
+	--input-bg: #1a1918;
+	--input-border: #414040;
+	--input-focus-ring: rgba(232, 168, 60, 0.18);
+	--menu-bg: #1a1918;
+	--menu-border: #414040;
+	--menu-shadow: 0 10px 15px rgba(0, 0, 0, 0.35);
+	--menu-hover: #2c2b2a;
+	--modal-bg: #1a1918;
+	--modal-border: #414040;
+	--modal-shadow: 0 20px 25px rgba(0, 0, 0, 0.4);
+	--tooltip-bg: #2c2b2a;
+	--tooltip-text: #f2f2f1;
+	--sidebar-bg: #1a1918;
+	--sidebar-border: #2c2b2a;
+	--tab-bg: #1a1918;
+	--tab-active-bg: #111110;
+	--tab-accent: #e8a83c;
+	--statusbar-bg: #1a1918;
+	--statusbar-border: #2c2b2a;
+	--scrollbar-thumb: #414040;
+	--scrollbar-hover: #6a6866;
+	--shadow-raised: 0 1px 3px rgba(0, 0, 0, 0.28);
+	--shadow-floating: 0 10px 15px rgba(0, 0, 0, 0.35);
+	--shadow-overlay: 0 20px 25px rgba(0, 0, 0, 0.4);
+
+	/* Fonts */
+	--font-ui: ui-sans-serif, -apple-system, sans-serif;
+	--font-editor: ui-sans-serif, -apple-system, serif;
+	--font-mono: ui-sans-serif, -apple-system, "JetBrains Mono", "Fira Code", Menlo, monospace;
+
+	/* Color scheme */
+	color-scheme: dark;
+}

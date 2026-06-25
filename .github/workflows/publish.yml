@@ -1,0 +1,200 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    name: Build and Release CLI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Validate required secrets
+        env:
+          CLI_GITHUB_CLIENT_ID: ${{ secrets.CLI_GITHUB_CLIENT_ID }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$CLI_GITHUB_CLIENT_ID" ]; then
+            echo "Missing required secret: CLI_GITHUB_CLIENT_ID"
+            echo "Create an OAuth App and set this secret to the app Client ID"
+            exit 1
+          fi
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "Missing required secret: NPM_TOKEN"
+            exit 1
+          fi
+
+      - name: Build release binaries
+        env:
+          VERSION: ${{ github.ref_name }}
+          GITHUB_CLIENT_ID: ${{ secrets.CLI_GITHUB_CLIENT_ID }}
+        run: |
+          VERSION_VALUE="${VERSION#v}"
+          VERSION_VALUE="${VERSION_VALUE#.}"
+          if ! [[ "$VERSION_VALUE" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid tag version: $VERSION"
+            echo "Use tags like v0.1.3"
+            exit 1
+          fi
+          make release VERSION="$VERSION_VALUE" GITHUB_CLIENT_ID="$GITHUB_CLIENT_ID"
+
+      - name: Verify release version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION_VALUE="${VERSION#v}"
+          ./bin/cortex-linux-amd64 --version | grep "v${VERSION_VALUE}"
+
+      - name: Create archives
+        run: |
+          mkdir -p dist
+          tar -czf dist/cortex-${{ github.ref_name }}-darwin-arm64.tar.gz -C bin cortex-darwin-arm64
+          tar -czf dist/cortex-${{ github.ref_name }}-darwin-amd64.tar.gz -C bin cortex-darwin-amd64
+          tar -czf dist/cortex-${{ github.ref_name }}-linux-amd64.tar.gz -C bin cortex-linux-amd64
+          tar -czf dist/cortex-${{ github.ref_name }}-linux-arm64.tar.gz -C bin cortex-linux-arm64
+          cp bin/cortex-windows-amd64.exe dist/cortex-${{ github.ref_name }}-windows-amd64.exe
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Cortex CLI ${{ github.ref_name }}
+          generate_release_notes: true
+          body: |
+            Automatic CLI release for `${{ github.ref_name }}`.
+
+            This release includes platform binaries and npm packages.
+          draft: false
+          prerelease: false
+          files: |
+            dist/cortex-${{ github.ref_name }}-darwin-arm64.tar.gz
+            dist/cortex-${{ github.ref_name }}-darwin-amd64.tar.gz
+            dist/cortex-${{ github.ref_name }}-linux-amd64.tar.gz
+            dist/cortex-${{ github.ref_name }}-linux-arm64.tar.gz
+            dist/cortex-${{ github.ref_name }}-windows-amd64.exe
+
+      - name: Prepare npm packages
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          VERSION="${VERSION#.}"
+          rm -rf npm
+          mkdir -p npm/cli/bin
+
+          cp bin/cortex-darwin-arm64 npm/cli/bin/cortex-darwin-arm64
+          cp bin/cortex-darwin-amd64 npm/cli/bin/cortex-darwin-x64
+          cp bin/cortex-linux-amd64 npm/cli/bin/cortex-linux-x64
+          cp bin/cortex-linux-arm64 npm/cli/bin/cortex-linux-arm64
+          cp bin/cortex-windows-amd64.exe npm/cli/bin/cortex-win32-x64.exe
+
+          chmod +x npm/cli/bin/cortex-darwin-arm64
+          chmod +x npm/cli/bin/cortex-darwin-x64
+          chmod +x npm/cli/bin/cortex-linux-x64
+          chmod +x npm/cli/bin/cortex-linux-arm64
+
+          cat > npm/cli/package.json <<EOF
+          {
+            "name": "@cortex.md/cli",
+            "version": "${VERSION}",
+            "description": "Official Cortex CLI",
+            "license": "MIT",
+            "bin": {
+              "cortex": "bin/cortex.js"
+            },
+            "files": [
+              "bin",
+              "postinstall.js"
+            ],
+            "scripts": {
+              "postinstall": "node postinstall.js"
+            }
+          }
+          EOF
+
+          cat > npm/cli/postinstall.js <<'EOF'
+          const mapping = {
+            "darwin-arm64": "cortex-darwin-arm64",
+            "darwin-x64": "cortex-darwin-x64",
+            "linux-arm64": "cortex-linux-arm64",
+            "linux-x64": "cortex-linux-x64",
+            "win32-x64": "cortex-win32-x64.exe"
+          }
+
+          const fs = require("node:fs")
+          const path = require("node:path")
+
+          const key = `${process.platform}-${process.arch}`
+          const sourceName = mapping[key]
+          if (!sourceName) {
+            console.error(`Unsupported platform: ${key}`)
+            process.exit(0)
+          }
+
+          const sourceBinary = path.join(__dirname, "bin", sourceName)
+
+          const targetDir = path.join(__dirname, "bin")
+          fs.mkdirSync(targetDir, { recursive: true })
+
+          const targetBinary = process.platform === "win32"
+            ? path.join(targetDir, "cortex.exe")
+            : path.join(targetDir, "cortex")
+
+          if (!fs.existsSync(sourceBinary)) {
+            console.error(`Missing bundled binary: ${sourceBinary}`)
+            process.exit(1)
+          }
+
+          fs.copyFileSync(sourceBinary, targetBinary)
+          if (process.platform !== "win32") {
+            fs.chmodSync(targetBinary, 0o755)
+          }
+          EOF
+
+          cat > npm/cli/bin/cortex.js <<'EOF'
+          #!/usr/bin/env node
+          const { spawnSync } = require("node:child_process")
+          const path = require("node:path")
+
+          const executable = process.platform === "win32"
+            ? path.join(__dirname, "cortex.exe")
+            : path.join(__dirname, "cortex")
+
+          const result = spawnSync(executable, process.argv.slice(2), { stdio: "inherit" })
+          if (result.error) {
+            console.error(result.error.message)
+            process.exit(1)
+          }
+          process.exit(result.status ?? 0)
+          EOF
+          chmod +x npm/cli/bin/cortex.js
+
+      - name: Smoke test npm package
+        working-directory: npm/cli
+        run: |
+          node postinstall.js
+          node bin/cortex.js --version | grep "${{ github.ref_name }}"
+
+      - name: Publish @cortex.md/cli
+        working-directory: npm/cli
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

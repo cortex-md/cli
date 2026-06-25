@@ -1,0 +1,10 @@
+{
+	"id": "{{ID}}",
+	"name": "{{NAME}}",
+	"version": "{{VERSION}}",
+	"minAppVersion": "0.1.0",
+	"author": "{{AUTHOR}}",
+	"description": "{{DESCRIPTION}}",
+	"icon": "puzzle",
+	"main": "dist/index.js"
+}
