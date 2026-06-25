@@ -117,6 +117,10 @@ jobs:
             "version": "${VERSION}",
             "description": "Official Cortex CLI",
             "license": "MIT",
+            "repository": {
+              "type": "git",
+              "url": "https://github.com/cortex-md/cli"
+            },
             "bin": {
               "cortex": "bin/cortex.js"
             },

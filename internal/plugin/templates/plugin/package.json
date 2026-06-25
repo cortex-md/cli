@@ -12,7 +12,7 @@
 		"validate": "cortex plugin validate"
 	},
 	"dependencies": {
-		"@cortex.md/api": "^0.2.0"
+		"@cortex.md/api": "^0.1.0"
 	},
 	"devDependencies": {
 		"typescript": "~5.8.3"
