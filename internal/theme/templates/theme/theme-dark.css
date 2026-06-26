@@ -1,4 +1,4 @@
-:root {
+body.theme-{{ID}}-dark {
 	/* Background colors */
 	--bg-primary: #111110;
 	--bg-secondary: #1a1918;
@@ -19,20 +19,26 @@
 	--text-on-accent: #0a0a09;
 
 	/* Accent colors */
-	--accent-default: #e8a83c;
+	--accent: #e8a83c;
 	--accent-hover: #f5c265;
 	--accent-active: #fada9a;
 	--accent-subtle: #241800;
 	--accent-border: #e8a83c;
 	--accent-text: #f5c265;
+	--brand: var(--accent);
+	--brand-hover: var(--accent-hover);
+	--brand-active: var(--accent-active);
+	--brand-subtle: var(--accent-subtle);
+	--brand-border: var(--accent-border);
+	--brand-text: var(--accent-text);
 
 	/* Link colors */
-	--link-default: #f5c265;
+	--link: #f5c265;
 	--link-hover: #fada9a;
 	--link-broken: #e05252;
 
 	/* Border colors */
-	--border-default: #414040;
+	--border: #414040;
 	--border-subtle: #2c2b2a;
 	--border-strong: #9e9c99;
 	--border-focus: #e8a83c;

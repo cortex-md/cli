@@ -131,16 +131,28 @@ func validThemeCSS() string {
 	--text-secondary: #222222;
 	--text-muted: #555555;
 	--text-disabled: #777777;
-	--accent-default: #0066cc;
+	--text-on-accent: #ffffff;
+	--accent: #0066cc;
 	--accent-hover: #0059b3;
 	--accent-active: #004c99;
-	--border-default: #cccccc;
+	--accent-subtle: #e8f1ff;
+	--accent-border: #0066cc;
+	--accent-text: #0059b3;
+	--brand: #0066cc;
+	--brand-hover: #0059b3;
+	--brand-active: #004c99;
+	--border: #cccccc;
 	--border-subtle: #eeeeee;
 	--border-strong: #999999;
+	--border-focus: #0066cc;
+	--link: #0066cc;
+	--link-hover: #0059b3;
+	--link-broken: #cc0000;
 	--syntax-keyword: #0066cc;
 	--syntax-string: #22863a;
 	--syntax-comment: #6a737d;
 	--syntax-number: #005cc5;
 	--syntax-function: #6f42c1;
+	--syntax-heading: #0066cc;
 }`
 }

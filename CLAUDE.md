@@ -128,9 +128,11 @@ commit, push, create GitHub Releases, or require GitHub tokens. They write:
 - plugin bundles or theme CSS assets
 - `<id>-<version>.zip`
 
-The scaffolded CD workflows run publish and create or update the GitHub Release from the prepared
-assets when the pushed tag matches the manifest version. They use GitHub's built-in `GITHUB_TOKEN`
-for the release and do not require `CORTEX_TOKEN` by default.
+The scaffolded CD workflows run publish, read `dist/cortex-build/build.json`, create the matching
+version tag when needed, and create or update the GitHub Release from the prepared assets. If the
+tag already has a release but points at an older commit, the workflow fails and asks for a manifest
+version bump. The workflows use GitHub's built-in `GITHUB_TOKEN` for the release and do not require
+`CORTEX_TOKEN` by default.
 
 `cortex registry submit [build-json]` updates the registry repository `cortex-md/registry` by
 opening a pull request. Registry submission is recommended as a local follow-up after the release is
@@ -153,20 +155,23 @@ The theme validate command checks:
 **Required CSS variables (error if missing):**
 - `--bg-primary`, `--bg-secondary`
 - `--text-primary`, `--text-secondary`
-- `--accent-default`
-- `--border-default`
+- `--accent` (`--accent-default` remains accepted as a legacy alias)
+- `--border` (`--border-default` remains accepted as a legacy alias)
 
 **Recommended CSS variables (warning if missing):**
 - `--bg-tertiary`, `--bg-elevated`, `--bg-hover`, `--bg-active`
-- `--text-muted`, `--text-disabled`
-- `--accent-hover`, `--accent-active`
-- `--border-subtle`, `--border-strong`
+- `--text-muted`, `--text-disabled`, `--text-on-accent`
+- `--accent-hover`, `--accent-active`, `--accent-subtle`, `--accent-border`, `--accent-text`
+- `--brand`, `--brand-hover`, `--brand-active`
+- `--border-subtle`, `--border-strong`, `--border-focus`
+- `--link`, `--link-hover`, `--link-broken`
 - `--syntax-keyword`, `--syntax-string`, `--syntax-comment`, `--syntax-number`, `--syntax-function`
+- `--syntax-heading`
 
 **Structure checks:**
 - manifest.json must exist with valid schema
 - All CSS files in colorschemes must exist
-- CSS files should define variables in `:root`
+- CSS files should define variables in `body.theme-<theme-name>-<scheme>`, `.theme-<theme-name>-<scheme>`, or `:root`
 
 **Size limits:**
 - Warning: > 50 KB per CSS file

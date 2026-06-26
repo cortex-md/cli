@@ -266,8 +266,7 @@ func NewThemePublishCommand() *cobra.Command {
 
 			fmt.Println()
 			ux.Info("Next steps:")
-			fmt.Println("  " + ux.Command("git tag v"+result.Version))
-			fmt.Println("  " + ux.Command("git push origin v"+result.Version))
+			fmt.Println("  " + ux.Command("git push origin main") + "       # CD creates/uses v" + result.Version)
 			fmt.Println("  " + ux.Command("cortex registry submit") + "  # after the release is live")
 
 			return nil

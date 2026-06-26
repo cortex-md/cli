@@ -3,6 +3,8 @@ name: Theme CD
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - "v*"
 
@@ -14,7 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -29,7 +33,9 @@ jobs:
       - name: Prepare release artifacts
         run: cortex theme publish .
 
-      - name: Verify tag matches manifest version
+      - name: Resolve release tag
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           MANIFEST="dist/cortex-build/build.json"
           EXPECTED_TAG="$(jq -r ".tagName" "$MANIFEST")"
@@ -40,10 +46,26 @@ jobs:
           fi
 
           echo "Release tag: ${EXPECTED_TAG}"
+          git fetch --tags origin
+          if git rev-parse -q --verify "refs/tags/${EXPECTED_TAG}" >/dev/null; then
+            TAG_SHA="$(git rev-list -n 1 "${EXPECTED_TAG}")"
+            HEAD_SHA="$(git rev-parse HEAD)"
+            if [ "$TAG_SHA" != "$HEAD_SHA" ]; then
+              if gh release view "$EXPECTED_TAG" >/dev/null 2>&1; then
+                echo "Tag ${EXPECTED_TAG} already has a release and points at ${TAG_SHA}."
+                echo "Bump manifest.version before publishing a new release."
+                exit 1
+              fi
+              echo "Tag ${EXPECTED_TAG} already exists without a release; publishing release assets for it."
+            fi
+          else
+            git tag "$EXPECTED_TAG"
+            git push origin "refs/tags/${EXPECTED_TAG}"
+          fi
 
       - name: Publish GitHub release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           MANIFEST="dist/cortex-build/build.json"
           TAG="$(jq -r ".tagName" "$MANIFEST")"
@@ -52,8 +74,8 @@ jobs:
           NOTES_PATH="dist/cortex-build/$NOTES"
 
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release edit "$TAG" --title "$TITLE" --notes-file "$NOTES_PATH"
+            gh release edit "$TAG" --title "$TITLE" --notes-file "$NOTES_PATH" --latest
             gh release upload "$TAG" dist/cortex-build/assets/* --clobber
           else
-            gh release create "$TAG" dist/cortex-build/assets/* --title "$TITLE" --notes-file "$NOTES_PATH"
+            gh release create "$TAG" dist/cortex-build/assets/* --title "$TITLE" --notes-file "$NOTES_PATH" --latest
           fi

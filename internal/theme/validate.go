@@ -23,13 +23,18 @@ type ValidateOptions struct {
 	Strict bool
 }
 
-var requiredCSSVariables = []string{
-	"--bg-primary",
-	"--bg-secondary",
-	"--text-primary",
-	"--text-secondary",
-	"--accent-default",
-	"--border-default",
+type cssVariableRequirement struct {
+	Name    string
+	Aliases []string
+}
+
+var requiredCSSVariables = []cssVariableRequirement{
+	{Name: "--bg-primary"},
+	{Name: "--bg-secondary"},
+	{Name: "--text-primary"},
+	{Name: "--text-secondary"},
+	{Name: "--accent", Aliases: []string{"--accent-default"}},
+	{Name: "--border", Aliases: []string{"--border-default"}},
 }
 
 var recommendedCSSVariables = []string{
@@ -39,15 +44,27 @@ var recommendedCSSVariables = []string{
 	"--bg-active",
 	"--text-muted",
 	"--text-disabled",
+	"--text-on-accent",
 	"--accent-hover",
 	"--accent-active",
+	"--accent-subtle",
+	"--accent-border",
+	"--accent-text",
+	"--brand",
+	"--brand-hover",
+	"--brand-active",
 	"--border-subtle",
 	"--border-strong",
+	"--border-focus",
+	"--link",
+	"--link-hover",
+	"--link-broken",
 	"--syntax-keyword",
 	"--syntax-string",
 	"--syntax-comment",
 	"--syntax-number",
 	"--syntax-function",
+	"--syntax-heading",
 }
 
 const (
@@ -184,22 +201,22 @@ func validateCSSFiles(dir string, m *manifest.ThemeManifest, result *ValidationR
 			continue
 		}
 
-		validateCSSContent(string(content), schemeName, cssPath, result, strict)
+		validateCSSContent(string(content), m.Name, schemeName, cssPath, result, strict)
 		validateCSSFileSize(fullPath, schemeName, result, strict)
 	}
 }
 
-func validateCSSContent(content string, schemeName string, filePath string, result *ValidationResult, strict bool) {
-	for _, varName := range requiredCSSVariables {
-		if !strings.Contains(content, varName+":") {
-			result.addError("Missing required CSS variable in %s (%s): %s", filePath, schemeName, varName)
+func validateCSSContent(content string, themeName string, schemeName string, filePath string, result *ValidationResult, strict bool) {
+	for _, requirement := range requiredCSSVariables {
+		if !hasCSSVariableRequirement(content, requirement) {
+			result.addError("Missing required CSS variable in %s (%s): %s", filePath, schemeName, requirement.Label())
 			result.Passed = false
 		}
 	}
 
 	missingRecommended := []string{}
 	for _, varName := range recommendedCSSVariables {
-		if !strings.Contains(content, varName+":") {
+		if !hasCSSVariable(content, varName) {
 			missingRecommended = append(missingRecommended, varName)
 		}
 	}
@@ -217,9 +234,51 @@ func validateCSSContent(content string, schemeName string, filePath string, resu
 		result.addWarning("External URL found in %s - may not work offline", filePath)
 	}
 
-	if !strings.Contains(content, ":root") {
-		result.addWarning("No :root selector found in %s - variables should be defined in :root", filePath)
+	if !hasThemeScope(content, themeName, schemeName) {
+		result.addWarning(
+			"No theme root selector found in %s - define variables in :root, body.theme-%s-%s, or .theme-%s-%s",
+			filePath,
+			themeName,
+			schemeName,
+			themeName,
+			schemeName,
+		)
 	}
+}
+
+func hasCSSVariableRequirement(content string, requirement cssVariableRequirement) bool {
+	if hasCSSVariable(content, requirement.Name) {
+		return true
+	}
+
+	for _, alias := range requirement.Aliases {
+		if hasCSSVariable(content, alias) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func hasCSSVariable(content string, name string) bool {
+	return strings.Contains(content, name+":")
+}
+
+func hasThemeScope(content string, themeName string, schemeName string) bool {
+	if strings.Contains(content, ":root") {
+		return true
+	}
+
+	return strings.Contains(content, fmt.Sprintf("body.theme-%s-%s", themeName, schemeName)) ||
+		strings.Contains(content, fmt.Sprintf(".theme-%s-%s", themeName, schemeName))
+}
+
+func (r cssVariableRequirement) Label() string {
+	if len(r.Aliases) == 0 {
+		return r.Name
+	}
+
+	return fmt.Sprintf("%s (legacy alias: %s)", r.Name, strings.Join(r.Aliases, ", "))
 }
 
 func validateCSSFileSize(path string, schemeName string, result *ValidationResult, strict bool) {

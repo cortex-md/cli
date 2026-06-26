@@ -69,9 +69,12 @@ func TestScaffoldedCDWorkflowsPublishReleaseOnly(t *testing.T) {
 			content := readFileString(t, path)
 
 			assertContains(t, content, "permissions:\n  contents: write")
-			assertContains(t, content, "Verify tag matches manifest version")
+			assertContains(t, content, "Resolve release tag")
+			assertContains(t, content, "branches:\n      - main")
 			assertContains(t, content, "GITHUB_REF_TYPE")
 			assertContains(t, content, "GITHUB_REF_NAME")
+			assertContains(t, content, "git push origin")
+			assertContains(t, content, "--latest")
 			assertContains(t, content, "Publish GitHub release")
 			assertOmits(t, content, "Require registry token")
 			assertOmits(t, content, "CORTEX_TOKEN")
