@@ -99,6 +99,15 @@ make lint
 
 Production builds need the OAuth app client id: `make build GITHUB_CLIENT_ID=...`.
 
+### Releasing the CLI
+
+Push a `vX.Y.Z` tag (`vX.Y.Z-rc.N` publishes under the npm `next` tag). The Release workflow tests,
+cross-compiles, attaches archives and `checksums.txt` to the GitHub release, and publishes one npm
+package per platform (`@cortex.md/cli-darwin-arm64`, `-darwin-x64`, `-linux-x64`, `-linux-arm64`,
+`-win32-x64`) plus `@cortex.md/cli`, which selects the right one through `optionalDependencies`.
+No install scripts run, so `npm`, `bun`, `pnpm` and `yarn` all work. It needs the
+`CLI_GITHUB_CLIENT_ID` and `NPM_TOKEN` secrets.
+
 ## License
 
 MIT
