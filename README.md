@@ -126,7 +126,9 @@ cross-compiles, attaches archives and `checksums.txt` to the GitHub release, and
 package per platform (`@cortex.md/cli-darwin-arm64`, `-darwin-x64`, `-linux-x64`, `-linux-arm64`,
 `-win32-x64`) plus `@cortex.md/cli`, which selects the right one through `optionalDependencies`.
 No install scripts run, so `npm`, `bun`, `pnpm` and `yarn` all work. It needs the
-`CLI_GITHUB_CLIENT_ID` and `NPM_TOKEN` secrets.
+`CLI_GITHUB_CLIENT_ID` secret and publishes through npm trusted publishing (every package lists
+`cortex-md/cli` / `publish.yml` as its trusted publisher). An `NPM_TOKEN` secret is only used as a
+fallback.
 
 ## License
 
