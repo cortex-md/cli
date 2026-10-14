@@ -33,17 +33,15 @@ jobs:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
 
+      - name: Update npm for trusted publishing
+        run: npm install -g npm@^11.5.1
+
       - name: Validate required secrets
         env:
           CLI_GITHUB_CLIENT_ID: ${{ secrets.CLI_GITHUB_CLIENT_ID }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ -z "$CLI_GITHUB_CLIENT_ID" ]; then
             echo "::error::Missing secret CLI_GITHUB_CLIENT_ID (GitHub OAuth App client id used by cortex login)"
-            exit 1
-          fi
-          if [ -z "$NPM_TOKEN" ]; then
-            echo "::error::Missing secret NPM_TOKEN"
             exit 1
           fi
 
