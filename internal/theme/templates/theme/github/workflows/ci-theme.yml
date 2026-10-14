@@ -1,4 +1,4 @@
-name: Theme CI
+name: Check
 
 on:
   pull_request:
@@ -7,21 +7,15 @@ on:
       - main
 
 jobs:
-  validate:
+  check:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+      - uses: oven-sh/setup-bun@v2
 
-      - name: Setup Cortex CLI
-        run: |
-          bun add -g @cortex.md/cli
-          cortex -v
+      - name: Install Cortex CLI
+        run: bun add -g "@cortex.md/cli@{{CLI_VERSION}}"
 
-      - name: Validate theme
-        run: cortex theme validate . --strict
+      - name: Check theme
+        run: cortex check --strict

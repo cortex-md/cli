@@ -8,26 +8,10 @@ import (
 )
 
 var (
-	logoPrimaryStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color(BrandPrimary)).
-				Bold(true)
-
-	logoAccentStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(BrandAccent)).
-			Bold(true)
-
-	logoMutedStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(BrandMuted))
-
-	titleStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(BrandAccent)).
-			Bold(true)
-
-	subtitleStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(BrandMuted))
-
-	versionStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(BrandMuted))
+	logoPrimaryStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(BrandPrimary)).Bold(true)
+	logoAccentStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color(BrandAccent)).Bold(true)
+	logoMutedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(BrandMuted))
+	titleStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color(BrandPrimary)).Bold(true)
 )
 
 const cortexLogo = `                                          ++-------------
@@ -61,44 +45,13 @@ const cortexLogo = `                                          ++-------------
                              #############                ##############`
 
 func PrintBanner(version string) {
-	title := titleStyle.Render("Cortex CLI")
-	ver := versionStyle.Render(fmt.Sprintf("v%s", version))
-
-	fmt.Println(renderCortexLogo())
-	fmt.Println()
-	fmt.Printf("  %s %s\n", title, ver)
-	fmt.Printf("  %s\n", subtitleStyle.Render("Plugin and theme developer tools"))
-	fmt.Println()
+	fmt.Fprintln(Stdout, renderCortexLogo())
+	fmt.Fprintln(Stdout)
+	PrintHeader(version)
 }
 
-func PrintBannerCompact(version string) {
-	mark := renderCortexLogoCompact()
-	title := titleStyle.Render("Cortex CLI")
-	ver := versionStyle.Render(fmt.Sprintf("v%s", version))
-	subtitle := subtitleStyle.Render("Plugin & theme tools")
-
-	fmt.Printf("%s %s %s - %s\n\n", mark, title, ver, subtitle)
-}
-
-func PrintWelcome(version string) {
-	fmt.Println(renderCortexLogo())
-	fmt.Println()
-
-	boxContent := fmt.Sprintf(
-		"%s %s %s\n%s",
-		renderCortexLogoCompact(),
-		titleStyle.Render("Cortex CLI"),
-		versionStyle.Render("v"+version),
-		subtitleStyle.Render("Developer tools for plugins and themes"),
-	)
-
-	box := lipgloss.NewStyle().
-		Border(lipgloss.ASCIIBorder()).
-		BorderForeground(lipgloss.Color(BrandAccent)).
-		Padding(0, 2).
-		Render(boxContent)
-	fmt.Println(box)
-	fmt.Println()
+func PrintHeader(version string) {
+	fmt.Fprintf(Stdout, "%s %s %s  %s\n", renderCortexMark(), titleStyle.Render("Cortex CLI"), Muted("v"+version), Muted("plugin & theme tools"))
 }
 
 func renderCortexLogo() string {
@@ -114,8 +67,8 @@ func renderCortexLogo() string {
 	return builder.String()
 }
 
-func renderCortexLogoCompact() string {
-	return logoAccentStyle.Render("++") + logoPrimaryStyle.Render("##") + logoAccentStyle.Render("++")
+func renderCortexMark() string {
+	return logoAccentStyle.Render("+") + logoPrimaryStyle.Render("##") + logoAccentStyle.Render("+")
 }
 
 func renderLogoChar(char rune) string {

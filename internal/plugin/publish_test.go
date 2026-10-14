@@ -3,6 +3,7 @@ package plugin
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/cortex/cli/internal/build"
@@ -29,7 +30,7 @@ func TestPluginReleaseAssetsMatchMarketplaceFormat(t *testing.T) {
 		}
 	}
 
-	assets, err := pluginReleaseAssets(dir, &manifest.PluginManifest{
+	assets, err := ReleaseAssets(dir, &manifest.PluginManifest{
 		ID:      "test-plugin",
 		Version: "1.2.3",
 		Main:    "dist/index.js",
@@ -46,6 +47,9 @@ func TestPluginReleaseAssetsMatchMarketplaceFormat(t *testing.T) {
 		if assets[index].Name != wantName {
 			t.Fatalf("asset[%d] = %s, want %s", index, assets[index].Name, wantName)
 		}
+	}
+	if !strings.Contains(string(assets[0].Content), `"capabilities"`) {
+		t.Fatalf("release manifest should mirror permissions as capabilities: %s", assets[0].Content)
 	}
 }
 
@@ -69,27 +73,39 @@ func TestPublishPreparesLocalArtifactsWithoutGithubToken(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("CORTEX_TOKEN", "")
 
-	result, err := Publish(dir, PublishOptions{})
+	if err := os.MkdirAll(filepath.Join(dir, "node_modules"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := Build(dir); err != nil {
+		t.Fatal(err)
+	}
+	pluginManifest, err := manifest.LoadPlugin(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assets, err := ReleaseAssets(dir, pluginManifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := build.Prepare(build.PrepareOptions{Directory: dir, Metadata: Metadata(pluginManifest), Assets: assets})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if _, err := os.Stat(filepath.Join(dir, ".git")); !os.IsNotExist(err) {
-		t.Fatalf("publish should not initialize git repository, stat err = %v", err)
+		t.Fatalf("pack should not initialize git repository, stat err = %v", err)
 	}
 
 	for _, path := range []string{
 		result.OutputDir,
 		result.BuildManifestPath,
 		result.ReleaseNotesPath,
-		result.ArchivePath,
 		filepath.Join(result.OutputDir, "assets", "manifest.json"),
 		filepath.Join(result.OutputDir, "assets", "index.js"),
 		filepath.Join(result.OutputDir, "assets", "styles.css"),
-		filepath.Join(result.OutputDir, "assets", "local-plugin-1.2.3.zip"),
 	} {
 		if _, err := os.Stat(path); err != nil {
-			t.Fatalf("expected publish artifact %s: %v", path, err)
+			t.Fatalf("expected release artifact %s: %v", path, err)
 		}
 	}
 
@@ -103,11 +119,8 @@ func TestPublishPreparesLocalArtifactsWithoutGithubToken(t *testing.T) {
 	if buildManifest.TagName != "v1.2.3" {
 		t.Fatalf("tagName = %s, want v1.2.3", buildManifest.TagName)
 	}
-	if buildManifest.Registry.IndexFile != "plugins.json" {
-		t.Fatalf("indexFile = %s, want plugins.json", buildManifest.Registry.IndexFile)
-	}
-	if buildManifest.Registry.Entry.Repo != "furqas/local-plugin" {
-		t.Fatalf("repo = %s, want furqas/local-plugin", buildManifest.Registry.Entry.Repo)
+	if buildManifest.Repository != "furqas/local-plugin" {
+		t.Fatalf("repository = %s, want furqas/local-plugin", buildManifest.Repository)
 	}
 }
 

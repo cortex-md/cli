@@ -4,51 +4,47 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/cortex/cli/internal/project"
 )
 
-func TestLoadSubmitOptionsUsesBuildManifestRegistryData(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "build.json")
-	if err := os.WriteFile(path, []byte(`{
-		"schemaVersion": 1,
-		"kind": "theme",
+func TestNewSubmissionUsesManifestRegistryData(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), []byte(`{
 		"id": "paper-theme",
-		"name": "Paper Theme",
+		"name": "paper-theme",
+		"displayName": "Paper Theme",
+		"author": "furqas",
 		"version": "1.2.3",
-		"tagName": "v1.2.3",
-		"releaseName": "Paper Theme v1.2.3",
-		"releaseNotes": "release-notes.md",
-		"repository": "furqas/paper-theme",
-		"assets": [],
-		"registry": {
-			"owner": "cortex-md",
-			"repo": "registry",
-			"baseBranch": "main",
-			"indexFile": "themes.json",
-			"entry": {
-				"id": "paper-theme",
-				"name": "Paper Theme",
-				"author": "furqas",
-				"description": "A paper-like theme",
-				"coverImageUrl": "",
-				"repo": "furqas/paper-theme"
-			}
-		}
+		"description": "A paper-like theme",
+		"repository": "https://github.com/furqas/paper-theme",
+		"colorschemes": {"dark": "dark.css", "light": "light.css"}
 	}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	opts, err := LoadSubmitOptions(path)
+	loaded, err := project.Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	submission, err := NewSubmission(loaded)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if opts.IndexFile != "themes.json" {
-		t.Fatalf("indexFile = %s, want themes.json", opts.IndexFile)
+	if submission.IndexFile != "themes.json" {
+		t.Fatalf("indexFile = %s, want themes.json", submission.IndexFile)
 	}
-	if opts.Kind != "theme" {
-		t.Fatalf("kind = %s, want theme", opts.Kind)
+	if submission.Kind != "theme" {
+		t.Fatalf("kind = %s, want theme", submission.Kind)
 	}
-	if opts.Entry.Repo != "furqas/paper-theme" {
-		t.Fatalf("repo = %s", opts.Entry.Repo)
+	if submission.Entry.Repo != "furqas/paper-theme" {
+		t.Fatalf("repo = %s", submission.Entry.Repo)
+	}
+	if submission.Entry.Name != "Paper Theme" {
+		t.Fatalf("name = %s, want the display name", submission.Entry.Name)
+	}
+	if submission.BranchName() != "registry/theme-paper-theme" {
+		t.Fatalf("branch = %s", submission.BranchName())
 	}
 }

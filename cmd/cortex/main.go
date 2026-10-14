@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/cortex/cli/internal/app"
+	"github.com/cortex/cli/internal/ux"
 )
 
 func main() {
@@ -15,6 +16,7 @@ func main() {
 
 	rootCmd := app.NewRootCommand()
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
+		ux.PrintError(err)
 		os.Exit(1)
 	}
 }

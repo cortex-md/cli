@@ -1,12 +1,13 @@
 {
 	"id": "{{ID}}",
-	"name": "{{NAME}}",
+	"name": "{{ID}}",
 	"displayName": "{{DISPLAY_NAME}}",
 	"author": "{{AUTHOR}}",
 	"version": "{{VERSION}}",
+	"minAppVersion": "{{MIN_APP_VERSION}}",
 	"description": "{{DESCRIPTION}}",
 	"colorschemes": {
-		"dark": "./theme-dark.css",
-		"light": "./theme-light.css"
+		"dark": "theme-dark.css",
+		"light": "theme-light.css"
 	}
 }

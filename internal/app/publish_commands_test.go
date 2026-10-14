@@ -2,9 +2,7 @@ package app
 
 import (
 	"bytes"
-	"context"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -20,42 +18,15 @@ func TestThemePublishHelpOmitsLegacyFlags(t *testing.T) {
 	assertOmitsLegacyPublishFlags(t, output)
 }
 
-func TestRegistrySubmitUsesDefaultBuildManifest(t *testing.T) {
-	called := false
-	var gotPath string
-	cmd := newRegistrySubmitCommand(func(ctx context.Context, path string) (string, error) {
-		called = true
-		gotPath = path
-		return "https://github.com/cortex-md/registry/pull/1", nil
-	})
-
-	if err := cmd.ExecuteContext(context.Background()); err != nil {
+func TestLegacyRegistrySubmitResolvesToSubmit(t *testing.T) {
+	cmd, _, err := NewRootCommand().Find([]string{"registry", "submit"})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if !called {
-		t.Fatal("expected registry submit runner to be called")
+	if !cmd.Hidden {
+		t.Fatal("legacy registry submit should be hidden")
 	}
-	if gotPath != filepath.Join("dist", "cortex-build", "build.json") {
-		t.Fatalf("default build json path = %q", gotPath)
-	}
-
-	cmd = newRegistrySubmitCommand(func(ctx context.Context, path string) (string, error) {
-		called = true
-		gotPath = path
-		return "https://github.com/cortex-md/registry/pull/1", nil
-	})
-	called = false
-	cmd.SetArgs([]string{"dist/cortex-build/build.json"})
-	if err := cmd.ExecuteContext(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-
-	if !called {
-		t.Fatal("expected registry submit runner to be called")
-	}
-	if gotPath != "dist/cortex-build/build.json" {
-		t.Fatalf("build json path = %q", gotPath)
-	}
+	assertContains(t, cmd.Short, "cortex submit")
 }
 
 func TestScaffoldedCDWorkflowsPublishReleaseOnly(t *testing.T) {
@@ -69,14 +40,13 @@ func TestScaffoldedCDWorkflowsPublishReleaseOnly(t *testing.T) {
 			content := readFileString(t, path)
 
 			assertContains(t, content, "permissions:\n  contents: write")
-			assertContains(t, content, "Resolve release tag")
-			assertContains(t, content, "branches:\n      - main")
-			assertContains(t, content, "GITHUB_REF_TYPE")
+			assertContains(t, content, "tags:\n      - \"v*\"")
 			assertContains(t, content, "GITHUB_REF_NAME")
-			assertContains(t, content, "git push origin")
+			assertContains(t, content, "cortex pack")
 			assertContains(t, content, "--latest")
 			assertContains(t, content, "Publish GitHub release")
-			assertOmits(t, content, "Require registry token")
+			assertOmits(t, content, "branches:")
+			assertOmits(t, content, "git push origin")
 			assertOmits(t, content, "CORTEX_TOKEN")
 			assertOmits(t, content, "cortex registry submit")
 		})
@@ -130,7 +100,6 @@ func assertOmitsLegacyPublishFlags(t *testing.T, output string) {
 		"--no-interactive",
 		"--skip-git-sync",
 		"--skip-registry-pr",
-		"--yes",
 		"--create-repo",
 		"--repository",
 		"--author",

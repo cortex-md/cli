@@ -1,26 +1,16 @@
-import { CortexPlugin } from "@cortex.md/api"
+import { definePlugin, type PluginManifest } from "@cortex.md/api"
+import manifest from "../manifest.json"
 
-export default class {{CLASS_NAME}}Plugin extends CortexPlugin {
-	onload(): void {
-		this.addCommand({
-			id: "example-command",
-			label: "Example Command",
-			icon: "smile",
-			execute: () => {
-				console.log("{{NAME}} is working!")
+export default definePlugin({
+	manifest: manifest as PluginManifest,
+	contributes: {
+		commands: [
+			{
+				id: "say-hello",
+				label: "{{NAME}}: Say hello",
+				icon: "sparkles",
+				run: (ctx) => ctx.ui.showNotice("Hello from {{NAME}}"),
 			},
-		})
-
-		this.registerStatusBarItem({
-			id: "{{ID}}-status",
-			position: "right",
-			icon: "puzzle",
-			text: "{{NAME}}",
-			tooltip: "{{DESCRIPTION}}",
-		})
-	}
-
-	onunload(): void {
-		console.log("{{NAME}} unloaded")
-	}
-}
+		],
+	},
+})

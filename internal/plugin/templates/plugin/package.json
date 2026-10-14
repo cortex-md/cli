@@ -1,18 +1,14 @@
 {
-	"name": "@cortex/plugin-{{ID}}",
+	"name": "{{ID}}",
 	"private": true,
 	"version": "{{VERSION}}",
 	"type": "module",
-	"exports": {
-		".": "./src/index.ts"
-	},
 	"scripts": {
-		"build": "bun build src/index.ts --outdir dist --target node --format esm",
-		"dev": "cortex plugin dev",
-		"validate": "cortex plugin validate"
+		"build": "bun build ./src/index.ts --outfile ./dist/index.js --target browser --format cjs --external @cortex.md/api --external @codemirror/state --external @codemirror/view",
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@cortex.md/api": "^0.1.0"
+		"@cortex.md/api": "{{API_VERSION}}"
 	},
 	"devDependencies": {
 		"typescript": "~5.8.3"

@@ -8,7 +8,7 @@ import (
 
 func TestCreateWritesCIAndCDWorkflows(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "test-plugin")
-	if err := Create(CreateOptions{
+	if _, err := Create(CreateOptions{
 		Name:        "Test Plugin",
 		ID:          "test-plugin",
 		Description: "A useful test plugin",

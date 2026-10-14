@@ -10,10 +10,9 @@ import (
 
 func TestCreateWritesWorkflowsGitignoreAndDescription(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "test-theme")
-	if err := Create(CreateOptions{
+	if _, err := Create(CreateOptions{
 		Name:        "Test Theme",
 		ID:          "test-theme",
-		DisplayName: "Test Theme",
 		Description: "A useful test theme",
 		Author:      "furqas",
 		Directory:   dir,
@@ -39,5 +38,8 @@ func TestCreateWritesWorkflowsGitignoreAndDescription(t *testing.T) {
 	}
 	if themeManifest.Description != "A useful test theme" {
 		t.Fatalf("description = %q", themeManifest.Description)
+	}
+	if themeManifest.Name != "test-theme" || themeManifest.DisplayName != "Test Theme" {
+		t.Fatalf("name = %q, displayName = %q", themeManifest.Name, themeManifest.DisplayName)
 	}
 }

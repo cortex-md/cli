@@ -2,9 +2,10 @@
 	"id": "{{ID}}",
 	"name": "{{NAME}}",
 	"version": "{{VERSION}}",
-	"minAppVersion": "0.1.0",
+	"minAppVersion": "{{MIN_APP_VERSION}}",
 	"author": "{{AUTHOR}}",
 	"description": "{{DESCRIPTION}}",
 	"icon": "puzzle",
-	"main": "dist/index.js"
+	"main": "dist/index.js",
+	"permissions": ["notifications"]
 }

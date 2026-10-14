@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/cortex/cli/internal/report"
+	"github.com/cortex/cli/pkg/manifest"
 )
 
 func TestValidateAcceptsCurrentThemeVariables(t *testing.T) {
@@ -20,15 +23,12 @@ func TestValidateAcceptsCurrentThemeVariables(t *testing.T) {
 }`, themeName, schemeName)
 	})
 
-	result, err := Validate(dir, ValidateOptions{})
-	if err != nil {
-		t.Fatal(err)
+	result := checkTheme(t, dir)
+	if !result.Passed(false) {
+		t.Fatalf("validation should pass, errors = %v", messages(result, report.LevelFail))
 	}
-	if !result.Passed {
-		t.Fatalf("validation should pass, errors = %v", result.Errors)
-	}
-	if hasValidationMessage(result.Warnings, "No theme root selector") {
-		t.Fatalf("theme selector should satisfy root scope warning, warnings = %v", result.Warnings)
+	if hasValidationMessage(messages(result, report.LevelWarn), "has no body.theme-") {
+		t.Fatalf("theme selector should satisfy root scope warning, warnings = %v", messages(result, report.LevelWarn))
 	}
 }
 
@@ -44,15 +44,12 @@ func TestValidateAcceptsClassOnlyThemeScope(t *testing.T) {
 }`, themeName, schemeName)
 	})
 
-	result, err := Validate(dir, ValidateOptions{})
-	if err != nil {
-		t.Fatal(err)
+	result := checkTheme(t, dir)
+	if !result.Passed(false) {
+		t.Fatalf("validation should pass, errors = %v", messages(result, report.LevelFail))
 	}
-	if !result.Passed {
-		t.Fatalf("validation should pass, errors = %v", result.Errors)
-	}
-	if hasValidationMessage(result.Warnings, "No theme root selector") {
-		t.Fatalf("class selector should satisfy root scope warning, warnings = %v", result.Warnings)
+	if hasValidationMessage(messages(result, report.LevelWarn), "has no body.theme-") {
+		t.Fatalf("class selector should satisfy root scope warning, warnings = %v", messages(result, report.LevelWarn))
 	}
 }
 
@@ -68,12 +65,9 @@ func TestValidateAcceptsLegacyAccentAndBorderAliases(t *testing.T) {
 }`
 	})
 
-	result, err := Validate(dir, ValidateOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !result.Passed {
-		t.Fatalf("legacy aliases should pass, errors = %v", result.Errors)
+	result := checkTheme(t, dir)
+	if !result.Passed(false) {
+		t.Fatalf("legacy aliases should pass, errors = %v", messages(result, report.LevelFail))
 	}
 }
 
@@ -87,18 +81,15 @@ func TestValidateRejectsMissingAccentAndBorderFamilies(t *testing.T) {
 }`
 	})
 
-	result, err := Validate(dir, ValidateOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.Passed {
+	result := checkTheme(t, dir)
+	if result.Passed(false) {
 		t.Fatal("validation should fail without accent and border families")
 	}
-	if !hasValidationMessage(result.Errors, "--accent") {
-		t.Fatalf("missing accent error not found, errors = %v", result.Errors)
+	if !hasValidationMessage(messages(result, report.LevelFail), "--accent") {
+		t.Fatalf("missing accent error not found, errors = %v", messages(result, report.LevelFail))
 	}
-	if !hasValidationMessage(result.Errors, "--border") {
-		t.Fatalf("missing border error not found, errors = %v", result.Errors)
+	if !hasValidationMessage(messages(result, report.LevelFail), "--border") {
+		t.Fatalf("missing border error not found, errors = %v", messages(result, report.LevelFail))
 	}
 }
 
@@ -109,7 +100,7 @@ func writeValidationTheme(
 ) string {
 	t.Helper()
 	dir := t.TempDir()
-	manifest := fmt.Sprintf(`{
+	manifestJSON := fmt.Sprintf(`{
 	"id": "%s",
 	"name": "%s",
 	"displayName": "Validation Theme",
@@ -122,7 +113,7 @@ func writeValidationTheme(
 	}
 }`, themeName, themeName)
 
-	writeValidationFile(t, filepath.Join(dir, "manifest.json"), manifest)
+	writeValidationFile(t, filepath.Join(dir, "manifest.json"), manifestJSON)
 	writeValidationFile(t, filepath.Join(dir, "dark.css"), cssForScheme(themeName, "dark"))
 	writeValidationFile(t, filepath.Join(dir, "light.css"), cssForScheme(themeName, "light"))
 
@@ -143,4 +134,25 @@ func hasValidationMessage(messages []string, needle string) bool {
 		}
 	}
 	return false
+}
+
+func checkTheme(t *testing.T, dir string) *report.Report {
+	t.Helper()
+	themeManifest, err := manifest.LoadTheme(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return Check(dir, themeManifest)
+}
+
+func messages(result *report.Report, level report.Level) []string {
+	found := []string{}
+	for _, section := range result.Sections {
+		for _, check := range section.Checks {
+			if check.Level == level {
+				found = append(found, check.Message)
+			}
+		}
+	}
+	return found
 }
