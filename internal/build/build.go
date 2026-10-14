@@ -31,6 +31,7 @@ type MetadataInput struct {
 	AuthorURL     string
 	Description   string
 	CoverImageURL string
+	Screenshots   []string
 	Repository    string
 }
 
@@ -43,6 +44,7 @@ type Metadata struct {
 	AuthorURL     string
 	Description   string
 	CoverImageURL string
+	Screenshots   []string
 	Repository    string
 }
 
@@ -181,6 +183,7 @@ func ResolveMetadata(dir string, input MetadataInput) (Metadata, error) {
 		AuthorURL:     firstNonEmpty(input.AuthorURL, packageAuthorURL(packageData)),
 		Description:   firstNonEmpty(input.Description, packageDescription(packageData)),
 		CoverImageURL: strings.TrimSpace(input.CoverImageURL),
+		Screenshots:   trimAll(input.Screenshots),
 		Repository:    firstNonEmpty(input.Repository, packageRepository(packageData), gitOriginRepository(dir)),
 	}
 
@@ -487,4 +490,17 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func trimAll(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	trimmed := make([]string, 0, len(values))
+	for _, value := range values {
+		if value = strings.TrimSpace(value); value != "" {
+			trimmed = append(trimmed, value)
+		}
+	}
+	return trimmed
 }

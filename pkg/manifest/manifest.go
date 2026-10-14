@@ -31,6 +31,7 @@ type PluginManifest struct {
 	Permissions   []string `json:"permissions,omitempty"`
 	Repository    string   `json:"repository,omitempty"`
 	CoverImageURL string   `json:"coverImageUrl,omitempty"`
+	Screenshots   []string `json:"screenshots,omitempty"`
 }
 
 type ThemeManifest struct {
@@ -45,6 +46,7 @@ type ThemeManifest struct {
 	Colorschemes  map[string]string `json:"colorschemes"`
 	Repository    string            `json:"repository,omitempty"`
 	CoverImageURL string            `json:"coverImageUrl,omitempty"`
+	Screenshots   []string          `json:"screenshots,omitempty"`
 }
 
 var (

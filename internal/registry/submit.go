@@ -51,7 +51,7 @@ func PlanSubmission(ctx context.Context, client *gh.Client, s *Submission) (*Pla
 
 	entries = upsertEntry(entries, s.Entry)
 	plan.Next = *FindEntry(entries, s.Entry.ID)
-	if existing != nil && *existing == plan.Next {
+	if existing != nil && existing.Equal(plan.Next) {
 		plan.Action = ActionNone
 		return plan, nil
 	}
@@ -216,6 +216,7 @@ func entryLines(entry *IndexEntry) []string {
 		fmt.Sprintf("authorUrl: %s", entry.AuthorURL),
 		fmt.Sprintf("description: %s", entry.Description),
 		fmt.Sprintf("coverImageUrl: %s", entry.CoverImageURL),
+		fmt.Sprintf("screenshots: %s", strings.Join(entry.Screenshots, ", ")),
 		fmt.Sprintf("repo: %s", entry.Repo),
 	}
 }

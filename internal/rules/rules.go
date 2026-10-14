@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
@@ -100,4 +101,43 @@ func NormalizeID(name string) string {
 	id := nonIDCharacters.ReplaceAllString(strings.ToLower(strings.TrimSpace(name)), "-")
 	id = repeatedHyphens.ReplaceAllString(id, "-")
 	return strings.Trim(id, "-")
+}
+
+const MaxScreenshots = 6
+
+var screenshotExtensions = []string{".png", ".jpg", ".jpeg", ".webp", ".gif"}
+
+func ScreenshotProblems(screenshots []string) []string {
+	problems := []string{}
+	if len(screenshots) > MaxScreenshots {
+		problems = append(problems, fmt.Sprintf("screenshots has %d images; the Marketplace shows at most %d", len(screenshots), MaxScreenshots))
+	}
+	seen := map[string]bool{}
+	for _, screenshot := range screenshots {
+		value := strings.TrimSpace(screenshot)
+		switch {
+		case !IsHTTPSURL(value):
+			problems = append(problems, fmt.Sprintf("screenshot %q is not an https URL", screenshot))
+		case !hasScreenshotExtension(value):
+			problems = append(problems, fmt.Sprintf("screenshot %q must end in %s", screenshot, strings.Join(screenshotExtensions, ", ")))
+		case seen[value]:
+			problems = append(problems, fmt.Sprintf("screenshot %q is listed twice", screenshot))
+		}
+		seen[value] = true
+	}
+	return problems
+}
+
+func hasScreenshotExtension(value string) bool {
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return false
+	}
+	path := strings.ToLower(parsed.Path)
+	for _, extension := range screenshotExtensions {
+		if strings.HasSuffix(path, extension) {
+			return true
+		}
+	}
+	return false
 }

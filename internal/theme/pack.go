@@ -73,6 +73,7 @@ func Metadata(m *manifest.ThemeManifest) build.MetadataInput {
 		AuthorURL:     m.AuthorURL,
 		Description:   m.Description,
 		CoverImageURL: m.CoverImageURL,
+		Screenshots:   m.Screenshots,
 		Repository:    m.Repository,
 	}
 }

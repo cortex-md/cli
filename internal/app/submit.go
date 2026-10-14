@@ -3,17 +3,20 @@ package app
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	gh "github.com/cortex/cli/internal/github"
 	"github.com/cortex/cli/internal/project"
 	"github.com/cortex/cli/internal/registry"
+	"github.com/cortex/cli/internal/rules"
 	"github.com/cortex/cli/internal/ux"
 	"github.com/spf13/cobra"
 )
 
 type submitOptions struct {
-	dryRun bool
-	cover  string
+	dryRun      bool
+	cover       string
+	screenshots []string
 }
 
 func newSubmitCommand() *cobra.Command {
@@ -24,9 +27,11 @@ func newSubmitCommand() *cobra.Command {
 		Short: "List the plugin or theme on the Marketplace (registry pull request)",
 		Long: `Checks the latest GitHub release, then opens or updates a pull request to
 cortex-md/registry from your fork. Only needed for the first release and when the
-name, description, author or cover image change: new versions reach users automatically.`,
+name, description, author, cover image or screenshots change: new versions reach
+users automatically.`,
 		Example: `  cortex submit --dry-run
-  cortex submit --cover https://example.com/cover.png`,
+  cortex submit --cover https://example.com/cover.png
+  cortex submit --screenshot https://example.com/editor.png --screenshot https://example.com/settings.png`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			p, err := project.Load(projectDir(args))
@@ -39,6 +44,7 @@ name, description, author or cover image change: new versions reach users automa
 
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Show the checks and the pull request without opening it")
 	cmd.Flags().StringVar(&opts.cover, "cover", "", "https URL of the Marketplace cover image")
+	cmd.Flags().StringArrayVar(&opts.screenshots, "screenshot", nil, "https URL of a Marketplace screenshot (repeat up to 6 times; replaces manifest screenshots)")
 	return cmd
 }
 
@@ -76,6 +82,9 @@ func runSubmit(ctx context.Context, p *project.Project, opts submitOptions) erro
 	}
 
 	if err := resolveCover(ctx, client, submission, opts.cover); err != nil {
+		return err
+	}
+	if err := resolveScreenshots(submission, opts.screenshots); err != nil {
 		return err
 	}
 
@@ -153,6 +162,20 @@ func resolveCover(ctx context.Context, client *gh.Client, submission *registry.S
 	}
 	if use {
 		submission.Entry.CoverImageURL = suggested
+	}
+	return nil
+}
+
+func resolveScreenshots(submission *registry.Submission, explicit []string) error {
+	if len(explicit) > 0 {
+		submission.Entry.Screenshots = explicit
+	}
+	if problems := rules.ScreenshotProblems(submission.Entry.Screenshots); len(problems) > 0 {
+		return ux.NewProblem(
+			"Screenshots are not valid: "+strings.Join(problems, "; "),
+			fmt.Sprintf("list up to %d distinct https image URLs (.png, .jpg, .webp or .gif) in manifest.json \"screenshots\" or pass --screenshot", rules.MaxScreenshots),
+			nil,
+		)
 	}
 	return nil
 }

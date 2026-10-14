@@ -79,6 +79,10 @@ func checkManifest(r *report.Report, m *manifest.PluginManifest) {
 		r.Fail("authorUrl must be an https URL", `use a full https:// URL or remove "authorUrl"`)
 	}
 
+	for _, problem := range rules.ScreenshotProblems(m.Screenshots) {
+		r.Warn(problem, fmt.Sprintf(`list up to %d distinct https image URLs (.png, .jpg, .webp or .gif) in "screenshots"; cortex submit rejects invalid ones`, rules.MaxScreenshots))
+	}
+
 	if m.Main == "" {
 		r.Fail("main is missing", `set "main": "dist/index.js" in manifest.json`)
 	} else if _, ok := rules.SafeRelativePath(m.Main); !ok {
