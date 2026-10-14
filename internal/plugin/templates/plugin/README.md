@@ -2,68 +2,30 @@
 
 {{DESCRIPTION}}
 
-## Development
-
-Install dependencies:
+## Develop
 
 ```bash
 bun install
+cortex dev
 ```
 
-Start development mode with hot reload:
+`cortex dev` builds the plugin, installs it into your vault (`<vault>/.cortex/plugins/{{ID}}`) and
+rebuilds on every change. Cortex reloads the plugin automatically. Enable community plugins in
+Settings the first time, then enable **{{NAME}}**.
+
+`manifest.json` is the single source of truth for the plugin identity: `src/index.ts` imports it,
+so keep `id`, `version` and `permissions` there.
+
+## Release
 
 ```bash
-bun run dev
+cortex check            # build + every Marketplace check
+cortex release patch    # bump, commit, tag and push; GitHub Actions publishes the release
+cortex submit           # first release only: open the Marketplace registry pull request
 ```
 
-## Build
-
-Build the plugin for production:
-
-```bash
-bun run build
-```
-
-## Validate
-
-Validate your plugin before publishing:
-
-```bash
-bun run validate
-```
-
-## Publish
-
-Prepare local release artifacts:
-
-```bash
-cortex plugin publish
-```
-
-The command writes `dist/cortex-build/build.json`, release notes, release assets, and an
-installable ZIP. The CD workflow reads that build manifest, creates the matching version tag when
-needed, and creates or updates the GitHub Release:
-
-```bash
-git push origin main
-```
-
-After the release is live, submit the Marketplace registry PR from your machine:
-
-```bash
-cortex login
-cortex registry submit
-```
-
-## GitHub Actions
-
-This template includes automated workflows in `.github/workflows/`:
-
-- `ci-plugin.yml` validates plugin build and strict checks on push/PR
-- `cd-plugin.yml` publishes on main pushes, tag pushes, or manual dispatch
-
-The CD workflow uses GitHub's built-in `GITHUB_TOKEN` to publish the release. No `CORTEX_TOKEN`
-secret is required unless you intentionally customize the workflow to submit registry PRs in CI.
+New releases reach Cortex users automatically once the plugin is listed. Run `cortex submit` again
+only when the name, description, author or cover image change.
 
 ## License
 

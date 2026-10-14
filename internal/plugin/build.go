@@ -1,134 +1,98 @@
 package plugin
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/cortex/cli/internal/ux"
-	"github.com/cortex/cli/pkg/manifest"
 )
 
-type BuildOptions struct {
-	Watch bool
+var ErrNoPackageManager = errors.New("no package manager found")
+
+var lockfiles = []struct {
+	manager string
+	file    string
+}{
+	{"bun", "bun.lock"},
+	{"bun", "bun.lockb"},
+	{"pnpm", "pnpm-lock.yaml"},
+	{"yarn", "yarn.lock"},
+	{"npm", "package-lock.json"},
 }
 
-func Build(dir string, opts BuildOptions) error {
-	absDir, err := filepath.Abs(dir)
-	if err != nil {
-		return fmt.Errorf("failed to resolve directory: %w", err)
-	}
-
-	m, err := manifest.LoadPlugin(absDir)
-	if err != nil {
-		return fmt.Errorf("failed to load manifest: %w", err)
-	}
-
-	ux.Info("Building plugin: %s v%s", m.Name, m.Version)
-
-	if err := runBundler(absDir, opts.Watch); err != nil {
-		return fmt.Errorf("build failed: %w", err)
-	}
-
-	distPath := filepath.Join(absDir, "dist")
-	if !fileExists(distPath) {
-		return fmt.Errorf("build output directory not found: %s", distPath)
-	}
-
-	mainFile := filepath.Join(absDir, m.Main)
-	if !fileExists(mainFile) {
-		return fmt.Errorf("main entry file not found: %s", m.Main)
-	}
-
-	ux.Success("Build complete!")
-	ux.Info("Output: %s", m.Main)
-
-	return nil
-}
-
-func runBundler(dir string, watch bool) error {
-	packageJSONPath := filepath.Join(dir, "package.json")
-	if !fileExists(packageJSONPath) {
-		return fmt.Errorf("package.json not found")
-	}
-
-	bundler := detectBundler(dir)
-	var cmd *exec.Cmd
-
-	switch bundler {
-	case "bun":
-		if watch {
-			cmd = exec.Command("bun", "run", "dev")
-		} else {
-			cmd = exec.Command("bun", "run", "build")
-		}
-	case "npm":
-		if watch {
-			cmd = exec.Command("npm", "run", "dev")
-		} else {
-			cmd = exec.Command("npm", "run", "build")
-		}
-	case "pnpm":
-		if watch {
-			cmd = exec.Command("pnpm", "run", "dev")
-		} else {
-			cmd = exec.Command("pnpm", "run", "build")
-		}
-	case "yarn":
-		if watch {
-			cmd = exec.Command("yarn", "dev")
-		} else {
-			cmd = exec.Command("yarn", "build")
-		}
-	default:
-		return fmt.Errorf("no package manager found (bun, npm, pnpm, or yarn required)")
-	}
-
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	ux.Info("Running: %s", cmd.String())
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("bundler command failed: %w", err)
-	}
-
-	return nil
-}
-
-func detectBundler(dir string) string {
-	bundlers := []struct {
-		name string
-		file string
-	}{
-		{"bun", "bun.lockb"},
-		{"pnpm", "pnpm-lock.yaml"},
-		{"yarn", "yarn.lock"},
-		{"npm", "package-lock.json"},
-	}
-
-	for _, b := range bundlers {
-		if fileExists(filepath.Join(dir, b.file)) {
-			return b.name
+func DetectPackageManager(dir string) string {
+	for _, lockfile := range lockfiles {
+		if fileExists(filepath.Join(dir, lockfile.file)) && execExists(lockfile.manager) {
+			return lockfile.manager
 		}
 	}
-
-	if execExists("bun") {
-		return "bun"
+	for _, manager := range []string{"bun", "pnpm", "yarn", "npm"} {
+		if execExists(manager) {
+			return manager
+		}
 	}
-	if execExists("pnpm") {
-		return "pnpm"
-	}
-	if execExists("yarn") {
-		return "yarn"
-	}
-	if execExists("npm") {
-		return "npm"
-	}
-
 	return ""
+}
+
+func Build(dir string) error {
+	if !fileExists(filepath.Join(dir, "package.json")) {
+		return ux.NewProblem("package.json not found", "plugins are built with the `build` script in package.json", nil)
+	}
+	if !fileExists(filepath.Join(dir, "node_modules")) {
+		return ux.NewProblem("Dependencies are not installed", "run `"+installCommand(DetectPackageManager(dir))+"` first", nil)
+	}
+
+	manager := DetectPackageManager(dir)
+	if manager == "" {
+		return ux.NewProblem("No package manager found", "install bun (recommended), npm, pnpm or yarn", ErrNoPackageManager)
+	}
+
+	return runQuiet(dir, manager, "run", "build")
+}
+
+func InstallDependencies(dir string) error {
+	manager := DetectPackageManager(dir)
+	if manager == "" {
+		return ux.NewProblem("No package manager found", "install bun (recommended), npm, pnpm or yarn", ErrNoPackageManager)
+	}
+	return runQuiet(dir, manager, "install")
+}
+
+func installCommand(manager string) string {
+	if manager == "" {
+		manager = "bun"
+	}
+	return manager + " install"
+}
+
+func runQuiet(dir string, name string, args ...string) error {
+	command := exec.Command(name, args...)
+	command.Dir = dir
+	var output bytes.Buffer
+	command.Stdout = &output
+	command.Stderr = &output
+
+	if err := command.Run(); err != nil {
+		return ux.NewProblem(
+			fmt.Sprintf("`%s %s` failed", name, strings.Join(args, " ")),
+			"fix the errors above and try again",
+			errors.New(strings.TrimSpace(tail(output.String(), 40))),
+		)
+	}
+	return nil
+}
+
+func tail(text string, lines int) string {
+	parts := strings.Split(strings.TrimRight(text, "\n"), "\n")
+	if len(parts) <= lines {
+		return text
+	}
+	return strings.Join(parts[len(parts)-lines:], "\n")
 }
 
 func fileExists(path string) bool {

@@ -1,10 +1,7 @@
-name: Plugin CD
+name: Release
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - main
     tags:
       - "v*"
 
@@ -12,73 +9,37 @@ permissions:
   contents: write
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v5
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+      - uses: oven-sh/setup-bun@v2
 
-      - name: Setup Cortex CLI
-        run: |
-          bun add -g @cortex.md/cli
-          cortex -v
+      - name: Install Cortex CLI
+        run: bun add -g "@cortex.md/cli@{{CLI_VERSION}}"
 
       - name: Install dependencies
         run: bun install
 
-      - name: Prepare release artifacts
-        run: cortex plugin publish .
-
-      - name: Resolve release tag
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          MANIFEST="dist/cortex-build/build.json"
-          EXPECTED_TAG="$(jq -r ".tagName" "$MANIFEST")"
-
-          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "$EXPECTED_TAG" ]; then
-            echo "Tag ${GITHUB_REF_NAME} does not match manifest version tag ${EXPECTED_TAG}"
-            exit 1
-          fi
-
-          echo "Release tag: ${EXPECTED_TAG}"
-          git fetch --tags origin
-          if git rev-parse -q --verify "refs/tags/${EXPECTED_TAG}" >/dev/null; then
-            TAG_SHA="$(git rev-list -n 1 "${EXPECTED_TAG}")"
-            HEAD_SHA="$(git rev-parse HEAD)"
-            if [ "$TAG_SHA" != "$HEAD_SHA" ]; then
-              if gh release view "$EXPECTED_TAG" >/dev/null 2>&1; then
-                echo "Tag ${EXPECTED_TAG} already has a release and points at ${TAG_SHA}."
-                echo "Bump manifest.version before publishing a new release."
-                exit 1
-              fi
-              echo "Tag ${EXPECTED_TAG} already exists without a release; publishing release assets for it."
-            fi
-          else
-            git tag "$EXPECTED_TAG"
-            git push origin "refs/tags/${EXPECTED_TAG}"
-          fi
+      - name: Package release
+        run: cortex pack
 
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          MANIFEST="dist/cortex-build/build.json"
-          TAG="$(jq -r ".tagName" "$MANIFEST")"
-          TITLE="$(jq -r ".releaseName" "$MANIFEST")"
-          NOTES="$(jq -r ".releaseNotes" "$MANIFEST")"
-          NOTES_PATH="dist/cortex-build/$NOTES"
-
+          BUILD="dist/cortex-build/build.json"
+          TAG="$(jq -r .tagName "$BUILD")"
+          if [ "$GITHUB_REF_NAME" != "$TAG" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match manifest version $TAG. Use 'cortex release' to bump and tag together."
+            exit 1
+          fi
+          TITLE="$(jq -r .releaseName "$BUILD")"
+          NOTES="dist/cortex-build/$(jq -r .releaseNotes "$BUILD")"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release edit "$TAG" --title "$TITLE" --notes-file "$NOTES_PATH" --latest
             gh release upload "$TAG" dist/cortex-build/assets/* --clobber
+            gh release edit "$TAG" --title "$TITLE" --notes-file "$NOTES" --latest
           else
-            gh release create "$TAG" dist/cortex-build/assets/* --title "$TITLE" --notes-file "$NOTES_PATH" --latest
+            gh release create "$TAG" dist/cortex-build/assets/* --title "$TITLE" --notes-file "$NOTES" --latest --verify-tag
           fi

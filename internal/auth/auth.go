@@ -20,6 +20,16 @@ import (
 const (
 	KeyringService = "cortex-cli"
 	KeyringUser    = "github-token"
+	Scopes         = "public_repo read:user"
+)
+
+type TokenSource string
+
+const (
+	SourceCortexEnv TokenSource = "CORTEX_TOKEN"
+	SourceGitHubEnv TokenSource = "GITHUB_TOKEN"
+	SourceKeychain  TokenSource = "cortex login"
+	SourceGitHubCLI TokenSource = "gh auth token"
 )
 
 type DeviceCodeResponse struct {
@@ -28,6 +38,8 @@ type DeviceCodeResponse struct {
 	VerificationURI string `json:"verification_uri"`
 	ExpiresIn       int    `json:"expires_in"`
 	Interval        int    `json:"interval"`
+	Error           string `json:"error"`
+	ErrorMessage    string `json:"error_description"`
 }
 
 type AccessTokenResponse struct {
@@ -67,7 +79,7 @@ func (c *Client) StartDeviceFlow(ctx context.Context) (*DeviceCodeResponse, erro
 
 	data := url.Values{}
 	data.Set("client_id", c.clientID)
-	data.Set("scope", "repo read:user")
+	data.Set("scope", Scopes)
 
 	req, err := http.NewRequestWithContext(
 		ctx,
@@ -96,6 +108,9 @@ func (c *Client) StartDeviceFlow(ctx context.Context) (*DeviceCodeResponse, erro
 	var deviceResp DeviceCodeResponse
 	if err := json.Unmarshal(body, &deviceResp); err != nil {
 		return nil, err
+	}
+	if deviceResp.Error != "" || deviceResp.DeviceCode == "" {
+		return nil, fmt.Errorf("github rejected the device flow request: %s", firstNonEmpty(deviceResp.ErrorMessage, deviceResp.Error, resp.Status))
 	}
 
 	return &deviceResp, nil
@@ -217,24 +232,33 @@ func IsAuthenticated() bool {
 	return err == nil
 }
 
-func ResolvePublishToken() (string, error) {
-	for _, name := range []string{"CORTEX_TOKEN", "GITHUB_TOKEN"} {
-		envToken := strings.TrimSpace(os.Getenv(name))
-		if envToken != "" {
-			return envToken, nil
+func ResolveToken() (string, TokenSource, error) {
+	for _, source := range []TokenSource{SourceCortexEnv, SourceGitHubEnv} {
+		if token := strings.TrimSpace(os.Getenv(string(source))); token != "" {
+			return token, source, nil
 		}
 	}
 
-	storedToken, err := GetToken()
-	if err == nil {
-		return storedToken, nil
+	if token, err := GetToken(); err == nil {
+		return token, SourceKeychain, nil
 	}
 
-	if errors.Is(err, ErrNoToken) {
-		return "", ErrNoToken
+	if token := githubCLIToken(); token != "" {
+		return token, SourceGitHubCLI, nil
 	}
 
-	return "", err
+	return "", "", ErrNoToken
+}
+
+func githubCLIToken() string {
+	if _, err := exec.LookPath("gh"); err != nil {
+		return ""
+	}
+	output, err := exec.Command("gh", "auth", "token").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(output))
 }
 
 func CopyToClipboard(text string) error {
@@ -290,4 +314,13 @@ func OpenBrowser(urlStr string) error {
 	}
 
 	return cmd.Start()
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }

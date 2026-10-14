@@ -3,10 +3,19 @@ package manifest
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
+)
+
+const FileName = "manifest.json"
+
+type Kind string
+
+const (
+	KindPlugin Kind = "plugin"
+	KindTheme  Kind = "theme"
 )
 
 type PluginManifest struct {
@@ -19,152 +28,147 @@ type PluginManifest struct {
 	Description   string   `json:"description"`
 	Icon          string   `json:"icon"`
 	Main          string   `json:"main"`
+	Permissions   []string `json:"permissions,omitempty"`
 	Repository    string   `json:"repository,omitempty"`
-	License       string   `json:"license,omitempty"`
-	Keywords      []string `json:"keywords,omitempty"`
+	CoverImageURL string   `json:"coverImageUrl,omitempty"`
 }
 
 type ThemeManifest struct {
-	ID           string            `json:"id"`
-	Name         string            `json:"name"`
-	DisplayName  string            `json:"displayName"`
-	Author       string            `json:"author"`
-	AuthorURL    string            `json:"authorUrl,omitempty"`
-	Version      string            `json:"version"`
-	Description  string            `json:"description,omitempty"`
-	Colorschemes map[string]string `json:"colorschemes"`
-	Repository   string            `json:"repository,omitempty"`
-	License      string            `json:"license,omitempty"`
+	ID            string            `json:"id"`
+	Name          string            `json:"name"`
+	DisplayName   string            `json:"displayName"`
+	Author        string            `json:"author"`
+	AuthorURL     string            `json:"authorUrl,omitempty"`
+	Version       string            `json:"version"`
+	MinAppVersion string            `json:"minAppVersion,omitempty"`
+	Description   string            `json:"description,omitempty"`
+	Colorschemes  map[string]string `json:"colorschemes"`
+	Repository    string            `json:"repository,omitempty"`
+	CoverImageURL string            `json:"coverImageUrl,omitempty"`
 }
 
 var (
 	ErrManifestNotFound = errors.New("manifest.json not found")
 	ErrInvalidManifest  = errors.New("invalid manifest format")
-	ErrMissingField     = errors.New("required field missing")
 )
 
-func LoadPlugin(dir string) (*PluginManifest, error) {
-	manifestPath := filepath.Join(dir, "manifest.json")
-	data, err := os.ReadFile(manifestPath)
+func Path(dir string) string {
+	return filepath.Join(dir, FileName)
+}
+
+func DetectKind(dir string) (Kind, error) {
+	raw, err := readRaw(dir)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, ErrManifestNotFound
-		}
-		return nil, err
+		return "", err
 	}
+	if _, ok := raw["colorschemes"]; ok {
+		return KindTheme, nil
+	}
+	return KindPlugin, nil
+}
 
+func ReadPlugin(dir string) (*PluginManifest, error) {
 	var manifest PluginManifest
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, ErrInvalidManifest
-	}
-
-	if err := validatePlugin(&manifest); err != nil {
+	if err := readInto(dir, &manifest); err != nil {
 		return nil, err
 	}
-
 	return &manifest, nil
+}
+
+func ReadTheme(dir string) (*ThemeManifest, error) {
+	var manifest ThemeManifest
+	if err := readInto(dir, &manifest); err != nil {
+		return nil, err
+	}
+	return &manifest, nil
+}
+
+func LoadPlugin(dir string) (*PluginManifest, error) {
+	manifest, err := ReadPlugin(dir)
+	if err != nil {
+		return nil, err
+	}
+	if missing := missingFields(map[string]string{
+		"id":          manifest.ID,
+		"name":        manifest.Name,
+		"version":     manifest.Version,
+		"author":      manifest.Author,
+		"description": manifest.Description,
+		"icon":        manifest.Icon,
+		"main":        manifest.Main,
+	}); len(missing) > 0 {
+		return nil, fmt.Errorf("manifest.json is missing %s", strings.Join(missing, ", "))
+	}
+	return manifest, nil
 }
 
 func LoadTheme(dir string) (*ThemeManifest, error) {
-	manifestPath := filepath.Join(dir, "manifest.json")
-	data, err := os.ReadFile(manifestPath)
+	manifest, err := ReadTheme(dir)
+	if err != nil {
+		return nil, err
+	}
+	if missing := missingFields(map[string]string{
+		"id":          manifest.ID,
+		"name":        manifest.Name,
+		"displayName": manifest.DisplayName,
+		"author":      manifest.Author,
+		"version":     manifest.Version,
+	}); len(missing) > 0 {
+		return nil, fmt.Errorf("manifest.json is missing %s", strings.Join(missing, ", "))
+	}
+	if len(manifest.Colorschemes) == 0 {
+		return nil, errors.New("manifest.json is missing colorschemes")
+	}
+	return manifest, nil
+}
+
+func ReleasePluginManifest(dir string) ([]byte, error) {
+	raw, err := readRaw(dir)
+	if err != nil {
+		return nil, err
+	}
+	if permissions, ok := raw["permissions"]; ok {
+		raw["capabilities"] = permissions
+	} else {
+		raw["capabilities"] = json.RawMessage("[]")
+	}
+	content, err := json.MarshalIndent(raw, "", "\t")
+	if err != nil {
+		return nil, err
+	}
+	return append(content, '\n'), nil
+}
+
+func readRaw(dir string) (map[string]json.RawMessage, error) {
+	raw := map[string]json.RawMessage{}
+	if err := readInto(dir, &raw); err != nil {
+		return nil, err
+	}
+	return raw, nil
+}
+
+func readInto(dir string, target interface{}) error {
+	data, err := os.ReadFile(Path(dir))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, ErrManifestNotFound
+			return ErrManifestNotFound
 		}
-		return nil, err
-	}
-
-	var manifest ThemeManifest
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, ErrInvalidManifest
-	}
-
-	if err := validateTheme(&manifest); err != nil {
-		return nil, err
-	}
-
-	return &manifest, nil
-}
-
-func SavePlugin(dir string, manifest *PluginManifest) error {
-	if err := validatePlugin(manifest); err != nil {
 		return err
 	}
-
-	manifestPath := filepath.Join(dir, "manifest.json")
-	data, err := json.MarshalIndent(manifest, "", "\t")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(manifestPath, data, 0o644)
-}
-
-func SaveTheme(dir string, manifest *ThemeManifest) error {
-	if err := validateTheme(manifest); err != nil {
-		return err
-	}
-
-	manifestPath := filepath.Join(dir, "manifest.json")
-	data, err := json.MarshalIndent(manifest, "", "\t")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(manifestPath, data, 0o644)
-}
-
-func validatePlugin(m *PluginManifest) error {
-	if m.ID == "" {
-		return errors.New("id is required")
-	}
-	if m.Name == "" {
-		return errors.New("name is required")
-	}
-	if m.Version == "" {
-		return errors.New("version is required")
-	}
-	if m.Author == "" {
-		return errors.New("author is required")
-	}
-	if m.Description == "" {
-		return errors.New("description is required")
-	}
-	if m.Main == "" {
-		return errors.New("main is required")
-	}
-	if m.Icon == "" {
-		return errors.New("icon is required")
+	if err := json.Unmarshal(data, target); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidManifest, err)
 	}
 	return nil
 }
 
-func validateTheme(m *ThemeManifest) error {
-	if m.ID == "" {
-		return errors.New("id is required")
+func missingFields(fields map[string]string) []string {
+	order := []string{"id", "name", "displayName", "version", "author", "description", "icon", "main"}
+	missing := []string{}
+	for _, name := range order {
+		value, ok := fields[name]
+		if ok && strings.TrimSpace(value) == "" {
+			missing = append(missing, name)
+		}
 	}
-	if m.Name == "" {
-		return errors.New("name is required")
-	}
-	if m.DisplayName == "" {
-		return errors.New("displayName is required")
-	}
-	if m.Author == "" {
-		return errors.New("author is required")
-	}
-	if m.Version == "" {
-		return errors.New("version is required")
-	}
-	if m.Colorschemes == nil || len(m.Colorschemes) == 0 {
-		return errors.New("colorschemes is required")
-	}
-	return nil
-}
-
-func NormalizeID(name string) string {
-	id := strings.ToLower(name)
-	id = regexp.MustCompile(`[^a-z0-9-]+`).ReplaceAllString(id, "-")
-	id = strings.Trim(id, "-")
-	return id
+	return missing
 }

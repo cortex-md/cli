@@ -8,16 +8,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/cortex/cli/pkg/zipx"
 )
 
 const (
-	SchemaVersion        = 1
-	OutputDirName        = "cortex-build"
-	DefaultRegistryOwner = "cortex-md"
-	DefaultRegistryRepo  = "registry"
-	DefaultRegistryBase  = "main"
+	SchemaVersion = 2
+	OutputDirName = "cortex-build"
 )
 
 type Kind string
@@ -28,39 +23,39 @@ const (
 )
 
 type MetadataInput struct {
-	Kind           Kind
-	ID             string
-	Name           string
-	Version        string
-	Author         string
-	AuthorURL      string
-	Description    string
-	CoverImageURL  string
-	Repository     string
-	InstallCommand string
+	Kind          Kind
+	ID            string
+	Name          string
+	Version       string
+	Author        string
+	AuthorURL     string
+	Description   string
+	CoverImageURL string
+	Repository    string
 }
 
 type Metadata struct {
-	Kind           Kind
-	ID             string
-	Name           string
-	Version        string
-	Author         string
-	AuthorURL      string
-	Description    string
-	CoverImageURL  string
-	Repository     string
-	InstallCommand string
+	Kind          Kind
+	ID            string
+	Name          string
+	Version       string
+	Author        string
+	AuthorURL     string
+	Description   string
+	CoverImageURL string
+	Repository    string
+}
+
+type File struct {
+	Path    string
+	Source  string
+	Content []byte
 }
 
 type SourceAsset struct {
-	Name string
-	Path string
-}
-
-type ArchiveFile struct {
-	Name string
-	Path string
+	Name    string
+	Path    string
+	Content []byte
 }
 
 type Asset struct {
@@ -68,43 +63,23 @@ type Asset struct {
 	Path string `json:"path"`
 }
 
-type RegistryEntry struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	Author        string `json:"author"`
-	AuthorURL     string `json:"authorUrl,omitempty"`
-	Description   string `json:"description"`
-	CoverImageURL string `json:"coverImageUrl"`
-	Repo          string `json:"repo"`
-}
-
-type RegistrySpec struct {
-	Owner      string        `json:"owner"`
-	Repo       string        `json:"repo"`
-	BaseBranch string        `json:"baseBranch"`
-	IndexFile  string        `json:"indexFile"`
-	Entry      RegistryEntry `json:"entry"`
-}
-
 type Manifest struct {
-	SchemaVersion int          `json:"schemaVersion"`
-	Kind          Kind         `json:"kind"`
-	ID            string       `json:"id"`
-	Name          string       `json:"name"`
-	Version       string       `json:"version"`
-	TagName       string       `json:"tagName"`
-	ReleaseName   string       `json:"releaseName"`
-	ReleaseNotes  string       `json:"releaseNotes"`
-	Repository    string       `json:"repository"`
-	Assets        []Asset      `json:"assets"`
-	Registry      RegistrySpec `json:"registry"`
+	SchemaVersion int     `json:"schemaVersion"`
+	Kind          Kind    `json:"kind"`
+	ID            string  `json:"id"`
+	Name          string  `json:"name"`
+	Version       string  `json:"version"`
+	TagName       string  `json:"tagName"`
+	ReleaseName   string  `json:"releaseName"`
+	ReleaseNotes  string  `json:"releaseNotes"`
+	Repository    string  `json:"repository"`
+	Assets        []Asset `json:"assets"`
 }
 
 type PrepareOptions struct {
-	Directory    string
-	Metadata     MetadataInput
-	Assets       []SourceAsset
-	ArchiveFiles []ArchiveFile
+	Directory string
+	Metadata  MetadataInput
+	Assets    []SourceAsset
 }
 
 type Result struct {
@@ -112,7 +87,6 @@ type Result struct {
 	AssetsDir         string
 	BuildManifestPath string
 	ReleaseNotesPath  string
-	ArchivePath       string
 	Manifest          Manifest
 }
 
@@ -120,15 +94,6 @@ type packageJSON struct {
 	Description string      `json:"description"`
 	Repository  interface{} `json:"repository"`
 	Author      interface{} `json:"author"`
-}
-
-func CleanOutput(dir string) error {
-	absDir, err := filepath.Abs(dir)
-	if err != nil {
-		return err
-	}
-
-	return os.RemoveAll(OutputDir(absDir))
 }
 
 func OutputDir(dir string) string {
@@ -149,9 +114,6 @@ func Prepare(opts PrepareOptions) (*Result, error) {
 	if len(opts.Assets) == 0 {
 		return nil, fmt.Errorf("release assets are required")
 	}
-	if len(opts.ArchiveFiles) == 0 {
-		return nil, fmt.Errorf("archive files are required")
-	}
 
 	outputDir := OutputDir(absDir)
 	assetsDir := filepath.Join(outputDir, "assets")
@@ -162,20 +124,10 @@ func Prepare(opts PrepareOptions) (*Result, error) {
 		return nil, err
 	}
 
-	assets, err := copyAssets(assetsDir, opts.Assets)
+	assets, err := writeAssets(assetsDir, opts.Assets)
 	if err != nil {
 		return nil, err
 	}
-
-	archiveName := fmt.Sprintf("%s-%s.zip", metadata.ID, metadata.Version)
-	archivePath := filepath.Join(assetsDir, archiveName)
-	if err := zipx.Create(archivePath, archiveFileMap(opts.ArchiveFiles)); err != nil {
-		return nil, err
-	}
-	assets = append(assets, Asset{
-		Name: archiveName,
-		Path: filepath.ToSlash(filepath.Join("assets", archiveName)),
-	})
 
 	releaseNotesPath := filepath.Join(outputDir, "release-notes.md")
 	if err := os.WriteFile(releaseNotesPath, []byte(buildReleaseNotes(metadata)), 0o644); err != nil {
@@ -188,26 +140,11 @@ func Prepare(opts PrepareOptions) (*Result, error) {
 		ID:            metadata.ID,
 		Name:          metadata.Name,
 		Version:       metadata.Version,
-		TagName:       fmt.Sprintf("v%s", metadata.Version),
+		TagName:       TagName(metadata.Version),
 		ReleaseName:   fmt.Sprintf("%s v%s", metadata.Name, metadata.Version),
 		ReleaseNotes:  "release-notes.md",
 		Repository:    metadata.Repository,
 		Assets:        assets,
-		Registry: RegistrySpec{
-			Owner:      DefaultRegistryOwner,
-			Repo:       DefaultRegistryRepo,
-			BaseBranch: DefaultRegistryBase,
-			IndexFile:  indexFileForKind(metadata.Kind),
-			Entry: RegistryEntry{
-				ID:            metadata.ID,
-				Name:          metadata.Name,
-				Author:        metadata.Author,
-				AuthorURL:     metadata.AuthorURL,
-				Description:   metadata.Description,
-				CoverImageURL: metadata.CoverImageURL,
-				Repo:          metadata.Repository,
-			},
-		},
 	}
 
 	buildManifestPath := filepath.Join(outputDir, "build.json")
@@ -224,29 +161,27 @@ func Prepare(opts PrepareOptions) (*Result, error) {
 		AssetsDir:         assetsDir,
 		BuildManifestPath: buildManifestPath,
 		ReleaseNotesPath:  releaseNotesPath,
-		ArchivePath:       archivePath,
 		Manifest:          manifest,
 	}, nil
+}
+
+func TagName(version string) string {
+	return "v" + version
 }
 
 func ResolveMetadata(dir string, input MetadataInput) (Metadata, error) {
 	packageData := loadPackageJSON(dir)
 
 	metadata := Metadata{
-		Kind:           input.Kind,
-		ID:             strings.TrimSpace(input.ID),
-		Name:           strings.TrimSpace(input.Name),
-		Version:        strings.TrimSpace(input.Version),
-		Author:         firstNonEmpty(input.Author, packageAuthor(packageData)),
-		AuthorURL:      firstNonEmpty(input.AuthorURL, packageAuthorURL(packageData)),
-		Description:    firstNonEmpty(input.Description, packageDescription(packageData)),
-		CoverImageURL:  strings.TrimSpace(input.CoverImageURL),
-		Repository:     firstNonEmpty(input.Repository, packageRepository(packageData), gitOriginRepository(dir)),
-		InstallCommand: strings.TrimSpace(input.InstallCommand),
-	}
-
-	if metadata.InstallCommand == "" {
-		metadata.InstallCommand = fmt.Sprintf("cortex %s install %s", metadata.Kind, metadata.ID)
+		Kind:          input.Kind,
+		ID:            strings.TrimSpace(input.ID),
+		Name:          strings.TrimSpace(input.Name),
+		Version:       strings.TrimSpace(input.Version),
+		Author:        firstNonEmpty(input.Author, packageAuthor(packageData)),
+		AuthorURL:     firstNonEmpty(input.AuthorURL, packageAuthorURL(packageData)),
+		Description:   firstNonEmpty(input.Description, packageDescription(packageData)),
+		CoverImageURL: strings.TrimSpace(input.CoverImageURL),
+		Repository:    firstNonEmpty(input.Repository, packageRepository(packageData), gitOriginRepository(dir)),
 	}
 
 	if metadata.Repository != "" {
@@ -276,10 +211,10 @@ func LoadManifest(path string) (*Manifest, error) {
 	}
 
 	if manifest.SchemaVersion != SchemaVersion {
-		return nil, fmt.Errorf("unsupported publish schema version: %d", manifest.SchemaVersion)
+		return nil, fmt.Errorf("unsupported build schema version: %d", manifest.SchemaVersion)
 	}
 	if manifest.Kind != KindPlugin && manifest.Kind != KindTheme {
-		return nil, fmt.Errorf("unsupported publish kind: %s", manifest.Kind)
+		return nil, fmt.Errorf("unsupported build kind: %s", manifest.Kind)
 	}
 
 	return &manifest, nil
@@ -293,7 +228,15 @@ func NormalizeGitHubRepository(value string) (string, error) {
 	return owner + "/" + repo, nil
 }
 
-func copyAssets(assetsDir string, sources []SourceAsset) ([]Asset, error) {
+func ResolveRepository(dir string, explicit string) string {
+	repository, err := NormalizeGitHubRepository(firstNonEmpty(explicit, packageRepository(loadPackageJSON(dir)), gitOriginRepository(dir)))
+	if err != nil {
+		return ""
+	}
+	return repository
+}
+
+func writeAssets(assetsDir string, sources []SourceAsset) ([]Asset, error) {
 	assets := []Asset{}
 	seen := map[string]bool{}
 	for _, source := range sources {
@@ -307,7 +250,11 @@ func copyAssets(assetsDir string, sources []SourceAsset) ([]Asset, error) {
 		seen[name] = true
 
 		targetPath := filepath.Join(assetsDir, name)
-		if err := copyFile(source.Path, targetPath); err != nil {
+		if source.Content != nil {
+			if err := os.WriteFile(targetPath, source.Content, 0o644); err != nil {
+				return nil, err
+			}
+		} else if err := copyFile(source.Path, targetPath); err != nil {
 			return nil, err
 		}
 		assets = append(assets, Asset{
@@ -316,14 +263,6 @@ func copyAssets(assetsDir string, sources []SourceAsset) ([]Asset, error) {
 		})
 	}
 	return assets, nil
-}
-
-func archiveFileMap(files []ArchiveFile) map[string]string {
-	fileMap := map[string]string{}
-	for _, file := range files {
-		fileMap[filepath.ToSlash(file.Name)] = file.Path
-	}
-	return fileMap
 }
 
 func copyFile(sourcePath string, targetPath string) error {
@@ -343,24 +282,25 @@ func copyFile(sourcePath string, targetPath string) error {
 	}
 	defer target.Close()
 
-	if _, err := io.Copy(target, source); err != nil {
-		return err
-	}
-
-	return nil
+	_, err = io.Copy(target, source)
+	return err
 }
 
 func buildReleaseNotes(metadata Metadata) string {
 	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("## %s\n\n", metadata.Name))
+	builder.WriteString(fmt.Sprintf("## %s %s\n\n", metadata.Name, metadata.Version))
 	builder.WriteString(metadata.Description)
 	builder.WriteString("\n\n")
-	builder.WriteString("### Installation\n\n")
-	builder.WriteString("```bash\n")
-	builder.WriteString(metadata.InstallCommand)
-	builder.WriteString("\n")
-	builder.WriteString("```\n")
+	builder.WriteString("### Install\n\n")
+	builder.WriteString(fmt.Sprintf("Open Cortex, go to **Marketplace → %s** and search for **%s**.\n", marketplaceTab(metadata.Kind), metadata.Name))
 	return builder.String()
+}
+
+func marketplaceTab(kind Kind) string {
+	if kind == KindTheme {
+		return "Themes"
+	}
+	return "Plugins"
 }
 
 func missingMetadata(metadata Metadata) []string {
@@ -405,13 +345,6 @@ func containsString(values []string, target string) bool {
 		}
 	}
 	return false
-}
-
-func indexFileForKind(kind Kind) string {
-	if kind == KindTheme {
-		return "themes.json"
-	}
-	return "plugins.json"
 }
 
 func loadPackageJSON(dir string) *packageJSON {

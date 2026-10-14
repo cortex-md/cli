@@ -5,7 +5,7 @@ BIN_NAME := cortex
 CMD_DIR := ./cmd/cortex
 
 GO := go
-VERSION ?= 0.2.0
+VERSION ?= 0.3.0
 BUILD_TIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 

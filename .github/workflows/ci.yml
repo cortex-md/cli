@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Go checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Format
+        run: |
+          UNFORMATTED="$(gofmt -l .)"
+          if [ -n "$UNFORMATTED" ]; then
+            echo "::error::Run gofmt on: $UNFORMATTED"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Staticcheck
+        run: go run honnef.co/go/tools/cmd/staticcheck@2025.1.1 ./...
+
+      - name: Test
+        run: go test -race ./...
+
+      - name: Cross-compile
+        run: make release GITHUB_CLIENT_ID=ci
+
+  install:
+    name: npm install and scaffold smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Build linux binary and npm packages
+        run: |
+          make build-dev VERSION=0.0.0-ci
+          cp bin/cortex bin/cortex-linux-amd64
+          node npm/build-packages.mjs --version 0.0.0-ci --only linux-x64
+
+      - name: Install with bun add -g (as the scaffolded workflows do)
+        run: |
+          PACKS="$(mktemp -d)"
+          (cd dist/npm/cli-linux-x64 && npm pack --silent --pack-destination "$PACKS")
+          (cd dist/npm/cli && npm pack --silent --pack-destination "$PACKS")
+          export BUN_INSTALL="$(mktemp -d)"
+          bun add -g "$PACKS"/*.tgz
+          echo "$BUN_INSTALL/bin" >> "$GITHUB_PATH"
+
+      - name: Scaffold and check a theme
+        working-directory: ${{ runner.temp }}
+        run: |
+          cortex --version | grep -F "v0.0.0-ci"
+          cortex create smoke-theme --theme --author CI --description "Smoke test theme for CI"
+          cd smoke-theme
+          git remote add origin https://github.com/cortex-md/smoke-theme.git
+          cortex check
+          cortex pack
+          test -f dist/cortex-build/assets/manifest.json
+
+      - name: Scaffold a plugin
+        working-directory: ${{ runner.temp }}
+        run: |
+          cortex create smoke-plugin --plugin --author CI --no-install
+          test -f smoke-plugin/src/index.ts
+          grep -F '"permissions"' smoke-plugin/manifest.json
