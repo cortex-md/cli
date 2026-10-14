@@ -53,6 +53,7 @@ func NewSubmission(p *project.Project) (*Submission, error) {
 			AuthorURL:     metadata.AuthorURL,
 			Description:   metadata.Description,
 			CoverImageURL: metadata.CoverImageURL,
+			Screenshots:   metadata.Screenshots,
 			Repo:          metadata.Repository,
 		},
 	}, nil

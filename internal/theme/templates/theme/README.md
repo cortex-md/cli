@@ -25,7 +25,7 @@ cortex submit           # first release only: open the Marketplace registry pull
 ```
 
 New releases reach Cortex users automatically once the theme is listed. Run `cortex submit` again
-only when the name, description, author or cover image change.
+only when the name, description, author, cover image or screenshots change.
 
 ## License
 

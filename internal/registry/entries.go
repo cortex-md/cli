@@ -3,18 +3,20 @@ package registry
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
 
 type IndexEntry struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	Author        string `json:"author"`
-	AuthorURL     string `json:"authorUrl,omitempty"`
-	Description   string `json:"description"`
-	CoverImageURL string `json:"coverImageUrl"`
-	Repo          string `json:"repo"`
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Author        string   `json:"author"`
+	AuthorURL     string   `json:"authorUrl,omitempty"`
+	Description   string   `json:"description"`
+	CoverImageURL string   `json:"coverImageUrl"`
+	Screenshots   []string `json:"screenshots,omitempty"`
+	Repo          string   `json:"repo"`
 }
 
 func ParseEntries(content string) ([]IndexEntry, error) {
@@ -84,8 +86,22 @@ func mergeEntry(current IndexEntry, next IndexEntry) IndexEntry {
 	if next.CoverImageURL != "" {
 		current.CoverImageURL = next.CoverImageURL
 	}
+	if len(next.Screenshots) > 0 {
+		current.Screenshots = append([]string(nil), next.Screenshots...)
+	}
 	if next.Repo != "" {
 		current.Repo = next.Repo
 	}
 	return current
+}
+
+func (e IndexEntry) Equal(other IndexEntry) bool {
+	return e.ID == other.ID &&
+		e.Name == other.Name &&
+		e.Author == other.Author &&
+		e.AuthorURL == other.AuthorURL &&
+		e.Description == other.Description &&
+		e.CoverImageURL == other.CoverImageURL &&
+		slices.Equal(e.Screenshots, other.Screenshots) &&
+		e.Repo == other.Repo
 }

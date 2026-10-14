@@ -18,6 +18,7 @@ func TestNewSubmissionUsesManifestRegistryData(t *testing.T) {
 		"version": "1.2.3",
 		"description": "A paper-like theme",
 		"repository": "https://github.com/furqas/paper-theme",
+		"screenshots": [" https://example.com/paper.png "],
 		"colorschemes": {"dark": "dark.css", "light": "light.css"}
 	}`), 0o644); err != nil {
 		t.Fatal(err)
@@ -43,6 +44,9 @@ func TestNewSubmissionUsesManifestRegistryData(t *testing.T) {
 	}
 	if submission.Entry.Name != "Paper Theme" {
 		t.Fatalf("name = %s, want the display name", submission.Entry.Name)
+	}
+	if len(submission.Entry.Screenshots) != 1 || submission.Entry.Screenshots[0] != "https://example.com/paper.png" {
+		t.Fatalf("screenshots = %v", submission.Entry.Screenshots)
 	}
 	if submission.BranchName() != "registry/theme-paper-theme" {
 		t.Fatalf("branch = %s", submission.BranchName())

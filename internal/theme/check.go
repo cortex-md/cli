@@ -122,6 +122,10 @@ func checkManifest(r *report.Report, m *manifest.ThemeManifest) {
 		r.Fail("authorUrl must be an https URL", `use a full https:// URL or remove "authorUrl"`)
 	}
 
+	for _, problem := range rules.ScreenshotProblems(m.Screenshots) {
+		r.Warn(problem, fmt.Sprintf(`list up to %d distinct https image URLs (.png, .jpg, .webp or .gif) in "screenshots"; cortex submit rejects invalid ones`, rules.MaxScreenshots))
+	}
+
 	if len(m.Description) < 10 {
 		r.Warn("description is missing or very short", "describe the theme in one sentence; Marketplace shows it on the card")
 	}
